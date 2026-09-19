@@ -16,7 +16,11 @@
  * need (cached 1 h): coding → best free coding model, thinking → highest
  * intelligence free model, balanced → fastest smart free model, cheap → tiny
  * free model for titles/memory/helpers. Static FALLBACK_CHAINS below apply
- * only when the catalog is unreachable — nothing ever hardcodes the winner.
+ * only when the catalog is unreachable. No request is ever locked to one
+ * model id — every tier is re-scored from live data inside your free-only
+ * perimeter, and pinned user choices fail over across the same pool.
+ * detectStealth() flags newly-appeared free models so every client
+ * (website, PC app, Telegram) can announce them.
  */
 
 const COOLDOWN_MS = 60_000;
@@ -217,7 +221,34 @@ function prettyLabel(id) {
   return name.replace(/\b\w/g, (c) => c.toUpperCase()) + ' · free';
 }
 
-/** Live catalog for GET /api/models: top 3 per tier + defaults. */
+const STEALTH_DAYS = 7;
+const STEALTH_NAME = /stealth|optimus|quasar|alpha|experimental|unnamed|mystery/i;
+
+/**
+ * Stealth-model detection: free models OpenRouter added recently (by catalog
+ * `created` date) or shipping under an unannounced/stealth-style name.
+ * Stateless — derived purely from the live catalog, so both the website, the
+ * PC app, and Telegram can announce the same set. Never includes the
+ * `openrouter/free` meta-router itself.
+ */
+export function detectStealth(models) {
+  const cutoff = Date.now() / 1000 - STEALTH_DAYS * 24 * 60 * 60;
+  const out = [];
+  for (const m of models || []) {
+    if (!m || typeof m.id !== 'string' || m.id === 'openrouter/free') continue;
+    const fresh = (m.created || 0) > cutoff;
+    const stealthy = STEALTH_NAME.test(m.id);
+    if (!fresh && !stealthy) continue;
+    out.push({
+      id: m.id,
+      label: prettyLabel(m.id),
+      reason: fresh && stealthy ? 'new + stealth-named' : fresh ? 'new free model' : 'stealth-named',
+    });
+  }
+  return out;
+}
+
+/** Live catalog for GET /api/models: top 3 per tier + defaults + stealth. */
 export async function liveCatalog() {
   const out = {};
   const defaults = {};
@@ -227,7 +258,8 @@ export async function liveCatalog() {
     out[tier] = top.map((id, i) => ({ id, label: prettyLabel(id), default: i === 0 }));
     if (top[0]) defaults[tier] = top[0];
   }
-  return { tiers: out, defaults };
+  const models = await fetchCatalog();
+  return { tiers: out, defaults, stealth: detectStealth(models), updatedAt: Date.now() };
 }
 
 /** Pinned model allowlist: live catalog first, static snapshot fallback. */
