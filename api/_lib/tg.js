@@ -21,6 +21,12 @@ function tg(token, method, payload) {
     .catch(() => ({}));
 }
 
+/** Raw Bot API call with an explicit token (used by pc-link pushes). */
+export function sendTelegram(token, method, payload) {
+  if (!token) return Promise.resolve({});
+  return tg(token, method, payload);
+}
+
 async function meUsername(token) {
   if (usernameCache.has(token)) return usernameCache.get(token);
   let username = '';
@@ -72,6 +78,9 @@ function mentioned(message, username) {
  * @param {string} opts.system     system prompt (persona per bot)
  * @param {string} opts.tier       omni chain tier: 'balanced' | 'coding' | 'thinking'
  * @param {string} opts.oopsName   display name used in the failure message
+ * @param {boolean} [opts.linkBot] also handle /link pairing codes and
+ *   pc:approve:/pc:deny: buttons (Orin Code bot only). Needs PC_LINK_SECRET
+ *   plus ./pclink.js; failures here never break normal Q&A.
  */
 export async function handleTelegramUpdate(req, res, opts) {
   if (req.method !== 'POST') {
@@ -91,6 +100,13 @@ export async function handleTelegramUpdate(req, res, opts) {
 
   try {
     const update = req.body || {};
+
+    // Inline approval buttons (Orin Code bot): pc:approve:<id> / pc:deny:<id>.
+    if (update.callback_query && opts.linkBot) {
+      await handleCallback(token, update.callback_query).catch(() => {});
+      return;
+    }
+
     const message = update.message || update.edited_message;
     if (!message || message.from?.is_bot) return;
 
@@ -104,6 +120,12 @@ export async function handleTelegramUpdate(req, res, opts) {
     if (chatType !== 'private' && !isMentioned && !isReplyToBot) return; // stay quiet
 
     let question = questionOf(message, username);
+
+    // /link CODE — pair this chat with the user's PC app (Orin Code bot).
+    if (opts.linkBot && /^\/link(\s|$)/i.test(question)) {
+      await handleLinkCommand(token, message, question);
+      return;
+    }
     const repliedText =
       message.reply_to_message?.text || message.reply_to_message?.caption || '';
     if (!question && repliedText && (isMentioned || isReplyToBot)) question = repliedText.trim();
@@ -136,5 +158,56 @@ export async function handleTelegramUpdate(req, res, opts) {
     }
   } catch {
     // Already acked — never fail the webhook.
+  }
+}
+
+/** /link CODE — claim a PC pairing code for this chat. */
+async function handleLinkCommand(token, message, question) {
+  const chatId = message.chat.id;
+  const code = (question.replace(/^\/link\s*/i, '').trim() || '').toUpperCase();
+  const reply = async (text) => {
+    await tg(token, 'sendMessage', { chat_id: chatId, text, reply_to_message_id: message.message_id });
+  };
+  if (!code) {
+    await reply('Send /link followed by the 6-letter code from Orin Code → Settings → Notifications.');
+    return;
+  }
+  try {
+    const { claimCode } = await import('./pclink.js');
+    await claimCode(code, chatId);
+    await reply('✅ Phone linked! Agent approvals from your PC will arrive here with Approve / Deny buttons.');
+  } catch (e) {
+    await reply(`Couldn't link: ${e?.message || 'try a fresh code from the PC app.'}`);
+  }
+}
+
+/** Approve/Deny button taps from PC approval pushes. */
+async function handleCallback(token, callback) {
+  const chatId = callback.message?.chat?.id;
+  const id = callback.id;
+  const answer = async (text) => {
+    await tg(token, 'answerCallbackQuery', { callback_query_id: id, text });
+  };
+  const data = String(callback.data || '');
+  const match = /^(pc:approve|pc:deny):(.+)$/.exec(data);
+  if (!match) {
+    await answer('Unknown button.');
+    return;
+  }
+  const [, action, approvalId] = match;
+  const approved = action === 'pc:approve';
+  try {
+    const { decide } = await import('./pclink.js');
+    const ok = await decide(approvalId, approved);
+    await answer(ok ? (approved ? 'Approved ✓' : 'Denied.') : 'Already resolved.');
+    if (chatId && callback.message?.message_id) {
+      await tg(token, 'editMessageText', {
+        chat_id: chatId,
+        message_id: callback.message.message_id,
+        text: `${callback.message.text || 'Orin Code asks'}${ok ? (approved ? '\n\n✅ Approved' : '\n\n❌ Denied') : '\n\nAlready resolved.'}`,
+      });
+    }
+  } catch {
+    await answer('Failed — try again.');
   }
 }

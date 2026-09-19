@@ -30,5 +30,6 @@ export default async function handler(req, res) {
     system: SYSTEM,
     tier: 'coding',
     oopsName: 'Orin Code',
+    linkBot: true,
   });
 }
