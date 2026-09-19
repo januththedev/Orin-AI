@@ -1,10 +1,15 @@
 /**
  * POST /api/chat — Orin AI inference gateway (multi-provider).
  *
- * Provider routing by capability:
- *   - Plain text (chat / title / memory-update / math)      → OpenRouter
- *   - Media + tool modes (image / video / tts / embed /
- *     computer-use / code-exec / url-context / research)    → Google Gemini API
+ * Provider routing by capability (strict: ALL conversational text runs on
+ * OpenRouter free models — never Gemini for text):
+ *   - Plain text (chat / title / memory-update / math / agent-plan /
+ *     research / url-context) → OpenRouter via api/_lib/omni.js
+ *     (numbered OPENROUTER_1..N pools, live auto-selected chains,
+ *     web-search plugin for grounding)
+ *   - Sandbox tools + modalities (image-pollinations / video / tts /
+ *     embeddings / computer-use / code-exec) → Google Gemini API
+ *     (tool/sensory capabilities with no OpenRouter equivalent)
  *
  * Auth: Bearer Firebase ID token REQUIRED for every mode.
  * Quotas are enforced SERVER-SIDE here (daily text per plan, rolling 30-day
@@ -530,20 +535,21 @@ async function handleUrlContext(req, res) {
   const { url, question } = req.body || {};
   if (!url) throw httpError(400, 'url required');
   try {
-    const ai = gemini();
-    const userPrompt = `Fetch this URL and answer the question based on its content.\nURL: ${url}\nQuestion: ${question || 'Summarise this page'}`;
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
-      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-      config: {
-        tools: [{ urlContext: {} }],
-        systemInstruction: 'Fetch the URL using url_context and answer thoroughly.',
+    // URL grounding on OpenRouter via the web plugin (no Gemini needed).
+    const result = await route(await chainFor('balanced'), [
+      {
+        role: 'system',
+        content: 'Fetch the URL using web search and answer thoroughly, citing what the page actually says.',
       },
+      { role: 'user', content: `Fetch this URL and answer the question based on its content.\nURL: ${url}\nQuestion: ${question || 'Summarise this page'}` },
+    ], {
+      extra: { plugins: [{ id: 'web', max_results: 5 }] },
     });
-    const meta = response.candidates?.[0]?.urlContextMetadata;
+    const links = result.links || [];
     return res.status(200).json({
-      text: extractText(response),
-      urlSource: meta?.urlMetadata?.[0]?.retrievedUrl,
+      text: result.text,
+      urlSource: links[0]?.uri,
+      links,
     });
   } catch (err) {
     if (err.code) throw err;
@@ -556,16 +562,22 @@ async function handleDeepResearch(req, res) {
   const { prompt } = req.body || {};
   if (!prompt) throw httpError(400, 'prompt required');
   try {
-    const ai = gemini();
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
-      contents: [{ role: 'user', parts: [{ text: `[DEEP RESEARCH] ${prompt}\n\nConduct thorough research. Use web search extensively. Provide a comprehensive, well-structured report with sources.` }] }],
-      config: {
-        tools: [{ googleSearch: {} }],
-        systemInstruction: 'You are a deep research assistant. Search extensively and produce a detailed, sourced report.',
+    // Deep research on OpenRouter: thinking chain (max free intelligence)
+    // plus the web-search plugin for live grounding. Models without plugin
+    // support 400 and are skipped automatically by the router.
+    const result = await route(await chainFor('thinking'), [
+      {
+        role: 'system',
+        content:
+          'You are a deep research assistant. Search extensively and produce a detailed, sourced report. ' +
+          'Cite every major claim inline.',
       },
+      { role: 'user', content: `[DEEP RESEARCH] ${prompt}\n\nConduct thorough research. Use web search extensively. Provide a comprehensive, well-structured report with sources.` },
+    ], {
+      wantThinking: true,
+      extra: { plugins: [{ id: 'web', max_results: 5 }] },
     });
-    return res.status(200).json({ text: extractText(response), links: extractLinks(response) });
+    return res.status(200).json({ text: result.text, thinking: result.thinking || '', links: result.links || [] });
   } catch (err) {
     if (err.code) throw err;
     throw httpError(500, 'Deep research failed');

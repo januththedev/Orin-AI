@@ -58,29 +58,27 @@ export const PROVIDER_POOLS = {
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-/** Static fallback chains (catalog unreachable). `openrouter/free` is last. */
+/** Static fallback chains (catalog unreachable). Never `openrouter/free`:
+ * the auto-router answers with the most basic model even for demanding
+ * tasks, so a clean failure with a trail beats a dumb answer. */
 export const FALLBACK_CHAINS = {
   coding: [
     'poolside/laguna-m.1:free',
     'poolside/laguna-xs-2.1:free',
     'cohere/north-mini-code:free',
-    'openrouter/free',
   ],
   thinking: [
     'nvidia/nemotron-3-ultra-550b-a55b:free',
     'qwen/qwen3-next-80b-a3b-instruct:free',
     'openai/gpt-oss-20b:free',
-    'openrouter/free',
   ],
   balanced: [
     'qwen/qwen3-next-80b-a3b-instruct:free',
     'openai/gpt-oss-20b:free',
-    'openrouter/free',
   ],
   cheap: [
     'openai/gpt-oss-20b:free',
     'qwen/qwen3-next-80b-a3b-instruct:free',
-    'openrouter/free',
   ],
 };
 
@@ -211,7 +209,8 @@ export async function chainFor(tier) {
     .map((m) => ({ m, s: SCORERS[tier](m) }))
     .sort((a, b) => b.s - a.s)
     .map((r) => r.m.id);
-  const chain = [...new Set([...ranked.slice(0, 6), 'openrouter/free'])];
+  const chain = [...new Set(ranked.slice(0, 6))];
+  if (!chain.length) return [...fallback];
   console.log(`[omni] live ${tier}: ${chain[0]} (+${chain.length - 1} fallbacks)`);
   return chain;
 }
@@ -335,12 +334,30 @@ async function attempt(key, model, messages, wantThinking, extra = {}) {
         );
       }
     }
-    return { ok: true, text, thinking };
+    return { ok: true, text, thinking, message };
   } catch {
     return { ok: false, action: 'retry' };
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Web-grounding citations from the OpenRouter web plugin
+ * (`annotations: [{ type: 'url_citation', url_citation: { url, title } }]`).
+ * Pure — safe to unit-test.
+ */
+export function extractWebCitations(message) {
+  const out = [];
+  const annotations = message?.annotations;
+  if (!Array.isArray(annotations)) return out;
+  for (const a of annotations) {
+    const cite = a?.url_citation;
+    if (a?.type === 'url_citation' && cite?.url) {
+      out.push({ uri: cite.url, title: cite.title || cite.url });
+    }
+  }
+  return out;
 }
 
 /**
@@ -369,7 +386,14 @@ export async function route(chain, messages, { wantThinking = false, extra = {},
         if (onAttempt) {
           try { onAttempt({ model, keyLast4: last4(key), ok: r.ok }); } catch {}
         }
-        if (r.ok) return { text: r.text, thinking: r.thinking || '', model };
+        if (r.ok) {
+          return {
+            text: r.text,
+            thinking: r.thinking || '',
+            model,
+            links: extractWebCitations(r.message),
+          };
+        }
         if (r.action === 'dead-key') {
           dead.add(key);
           errors.push(`${model}: bad key`);
@@ -395,6 +419,7 @@ export async function route(chain, messages, { wantThinking = false, extra = {},
     const lastResort = await pass(true);
     if (lastResort) return lastResort;
   }
+  if (!chain.length) throw new Error('No models available in this tier right now.');
   throw new Error(`All providers failed: ${errors.join('; ') || 'all keys cooling down'}`);
 }
 
@@ -404,6 +429,9 @@ export async function resolveChain({ model, thinking } = {}) {
     const balanced = await chainFor('balanced');
     return { chain: [model, ...balanced.filter((m) => m !== model)], pinned: model };
   }
+  // PC app tiers: pro = max intelligence, flash = balanced speed+smarts.
+  if (model === 'orin-pro' || thinking) return { chain: await chainFor('thinking'), pinned: null };
+  if (model === 'orin-flash') return { chain: await chainFor('balanced'), pinned: null };
   if (thinking) return { chain: await chainFor('thinking'), pinned: null };
   return { chain: await chainFor('balanced'), pinned: null };
 }
