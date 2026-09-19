@@ -15,10 +15,10 @@
  * Free-only policy: chains are picked LIVE from OpenRouter's catalog on every
  * need (cached 1 h): coding → best free coding model, thinking → highest
  * intelligence free model, balanced → fastest smart free model, cheap → tiny
- * free model for titles/memory/helpers. Static FALLBACK_CHAINS below apply
- * only when the catalog is unreachable. No request is ever locked to one
- * model id — every tier is re-scored from live data inside your free-only
- * perimeter, and pinned user choices fail over across the same pool.
+ * free model for titles/memory/helpers. No model id is hardcoded anywhere in
+ * the selection path: if the catalog is unreachable the router reuses its
+ * last good live selection (/tmp snapshot); if there is none it fails loudly
+ * instead of answering with a stale hardcoded model.
  * detectStealth() flags newly-appeared free models so every client
  * (website, PC app, Telegram) can announce them.
  */
@@ -58,32 +58,28 @@ export const PROVIDER_POOLS = {
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-/** Static fallback chains (catalog unreachable). Never `openrouter/free`:
- * the auto-router answers with the most basic model even for demanding
- * tasks, so a clean failure with a trail beats a dumb answer. */
-export const FALLBACK_CHAINS = {
-  coding: [
-    'poolside/laguna-m.1:free',
-    'poolside/laguna-xs-2.1:free',
-    'cohere/north-mini-code:free',
-  ],
-  thinking: [
-    'nvidia/nemotron-3-ultra-550b-a55b:free',
-    'qwen/qwen3-next-80b-a3b-instruct:free',
-    'openai/gpt-oss-20b:free',
-  ],
-  balanced: [
-    'qwen/qwen3-next-80b-a3b-instruct:free',
-    'openai/gpt-oss-20b:free',
-  ],
-  cheap: [
-    'openai/gpt-oss-20b:free',
-    'qwen/qwen3-next-80b-a3b-instruct:free',
-  ],
-};
+/** Last-good live selection, snapshotted to /tmp so a catalog outage falls
+ * back to the most recent real ranking — never to a hardcoded model. */
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
-// Back-compat alias (static snapshot for callers that can't await).
-export const CHAINS = FALLBACK_CHAINS;
+const LAST_GOOD_PATH = path.join(os.tmpdir(), 'omni-catalog.json');
+
+function readLastGood() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(LAST_GOOD_PATH, 'utf8'));
+    if (parsed && typeof parsed === 'object' && parsed.chains) return parsed.chains;
+  } catch {}
+  return {};
+}
+
+function writeLastGood(tier, chain) {
+  try {
+    const chains = { ...readLastGood(), [tier]: chain };
+    fs.writeFileSync(LAST_GOOD_PATH, JSON.stringify({ at: Date.now(), chains }));
+  } catch {}
+}
 
 /** Live catalog: fetched from OpenRouter, cached 1 h, stale on failure. */
 let catalogCache = { at: 0, models: [] };
@@ -198,21 +194,28 @@ function scoreCheap(m) {
 const SCORERS = { coding: scoreCoding, thinking: scoreThinking, balanced: scoreBalanced, cheap: scoreCheap };
 
 /**
- * Ranked live chain for a tier (top 6 + `openrouter/free` safety net).
- * Falls back to the static list when the catalog is unreachable.
+ * Ranked live chain for a tier (top 6). Falls back to the last good live
+ * selection; fails loudly when there is neither — a stale hardcoded model
+ * would only 404 anyway.
  */
 export async function chainFor(tier) {
-  const fallback = FALLBACK_CHAINS[tier] || FALLBACK_CHAINS.balanced;
   const models = await fetchCatalog();
-  if (!models.length) return fallback;
-  const ranked = models
-    .map((m) => ({ m, s: SCORERS[tier](m) }))
-    .sort((a, b) => b.s - a.s)
-    .map((r) => r.m.id);
-  const chain = [...new Set(ranked.slice(0, 6))];
-  if (!chain.length) return [...fallback];
-  console.log(`[omni] live ${tier}: ${chain[0]} (+${chain.length - 1} fallbacks)`);
-  return chain;
+  if (models.length) {
+    const ranked = models
+      .map((m) => ({ m, s: SCORERS[tier](m) }))
+      .sort((a, b) => b.s - a.s)
+      .map((r) => r.m.id);
+    const chain = [...new Set(ranked.slice(0, 6))];
+    writeLastGood(tier, chain);
+    console.log(`[omni] live ${tier}: ${chain[0]} (+${chain.length - 1} fallbacks)`);
+    return chain;
+  }
+  const last = readLastGood()[tier] || [];
+  if (last.length) {
+    console.log(`[omni] catalog unreachable — reusing last good ${tier}: ${last[0]}`);
+    return last;
+  }
+  throw new Error(`No ${tier} models reachable right now (catalog down, no cached selection).`);
 }
 
 function prettyLabel(id) {
@@ -247,13 +250,19 @@ export function detectStealth(models) {
   return out;
 }
 
-/** Live catalog for GET /api/models: top 3 per tier + defaults + stealth. */
+/** Live catalog for GET /api/models: top 3 per tier + defaults + stealth.
+ * Degrades per-tier (empty list) instead of failing the whole endpoint. */
 export async function liveCatalog() {
   const out = {};
   const defaults = {};
   for (const tier of ['coding', 'thinking', 'balanced']) {
-    const chain = await chainFor(tier);
-    const top = chain.filter((id) => id !== 'openrouter/free').slice(0, 3);
+    let chain = [];
+    try {
+      chain = await chainFor(tier);
+    } catch {
+      chain = [];
+    }
+    const top = chain.slice(0, 3);
     out[tier] = top.map((id, i) => ({ id, label: prettyLabel(id), default: i === 0 }));
     if (top[0]) defaults[tier] = top[0];
   }
@@ -261,12 +270,12 @@ export async function liveCatalog() {
   return { tiers: out, defaults, stealth: detectStealth(models), updatedAt: Date.now() };
 }
 
-/** Pinned model allowlist: live catalog first, static snapshot fallback. */
+/** Pinned model allowlist: live catalog first, last-good selection fallback. */
 export async function isAllowedModel(id) {
   if (typeof id !== 'string' || !id) return false;
   const models = await fetchCatalog();
   if (models.length) return models.some((m) => m.id === id);
-  return FALLBACK_CHAINS.balanced.includes(id) || FALLBACK_CHAINS.thinking.includes(id);
+  return Object.values(readLastGood()).some((chain) => chain.includes(id));
 }
 
 function last4(key) {

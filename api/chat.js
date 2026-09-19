@@ -128,7 +128,7 @@ RULES:
    block is the deliverable.`;
 }
 
-// getModels retired — free-model chains live in api/_lib/omni.js CHAINS.
+// getModels retired — free-model chains are picked live in api/_lib/omni.js chainFor().
 
 function getContextLimit(plan) {
   const p = (plan || 'free').toLowerCase();
