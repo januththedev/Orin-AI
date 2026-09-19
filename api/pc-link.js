@@ -18,6 +18,7 @@ import { requireUser, httpError } from './_lib/firebase.js';
 import { apiHandler } from './_lib/http.js';
 import { rateLimit } from './_lib/ratelimit.js';
 import { createCode, claimCode, bindingFor, unbind, pushApproval, pollDecisions, decide } from './_lib/pclink.js';
+import { registerMachine, claimTask, finishTask } from './_lib/pclink.js';
 import { sendTelegram } from './_lib/tg.js';
 
 export const config = { maxDuration: 30 };
@@ -51,11 +52,18 @@ async function handler(req, res) {
   if (action === 'start') {
     if (!(await rateLimit(`pc-link:${uid}`, 10, 60_000))) throw httpError(429, 'Slow down');
     const code = await createCode(uid);
-    return res.status(200).json({ code });
+    // Machine identity: tasks later route ONLY to this PC.
+    await registerMachine(uid, body.machine_id, body.machine_name).catch(() => {});
+    const binding = await bindingFor(uid);
+    return res.status(200).json({ code, linked: !!binding?.chatId });
   }
   if (action === 'status') {
     const binding = await bindingFor(uid);
-    return res.status(200).json({ linked: !!binding, chatId: binding?.chatId || null });
+    return res.status(200).json({
+      linked: !!binding?.chatId,
+      chatId: binding?.chatId || null,
+      machineName: binding?.machineName || null,
+    });
   }
   if (action === 'unlink') {
     await unbind(uid);
@@ -86,6 +94,30 @@ async function handler(req, res) {
   if (action === 'poll') {
     const decisions = await pollDecisions(uid);
     return res.status(200).json({ decisions });
+  }
+  if (action === 'task_poll') {
+    // PC long-poll: oldest queued task for MY machine (or unassigned).
+    const task = await claimTask(uid, body.machine_id).catch(() => null);
+    if (!task) return res.status(200).json({ task: null });
+    return res.status(200).json({
+      task: { taskId: task.id, instructions: task.instructions },
+    });
+  }
+  if (action === 'task_result') {
+    // PC reports back — the server forwards to the phone immediately.
+    const { taskId, ok, summary } = body;
+    if (!taskId) throw httpError(400, 'taskId required');
+    const finished = await finishTask(String(taskId), uid, ok !== false, summary);
+    if (!finished) throw httpError(404, 'Unknown task');
+    const botToken = process.env.TELEGRAM_CODE_BOT_TOKEN || '';
+    if (botToken && finished.chatId) {
+      const headline = finished.status === 'done' ? '✅ Done on your PC' : '❌ Failed on your PC';
+      await sendTelegram(botToken, 'sendMessage', {
+        chat_id: finished.chatId,
+        text: `${headline}:\n${String(finished.result || '').slice(0, 3500)}`,
+      }).catch(() => {});
+    }
+    return res.status(200).json({ ok: true });
   }
 
   throw httpError(400, 'Unknown action');

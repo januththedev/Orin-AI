@@ -44,13 +44,21 @@ export async function claimCode(code, chatId) {
     await ref.delete().catch(() => {});
     throw Object.assign(new Error('That code expired — generate a fresh one in the PC app.'), { code: 410 });
   }
-  await db().collection('pc_bindings').doc(String(d.uid)).set({
+  // Bind this chat to the user (merging any machine identity the PC sent).
+  const uid = String(d.uid);
+  const binding = db().collection('pc_bindings').doc(uid);
+  const existing = await binding.get().catch(() => null);
+  const already = existing && existing.exists ? existing.data() : {};
+  await binding.set({
     chatId: String(chatId),
     bot: 'code',
-    createdAt: TS(),
-  });
+    machineId: already.machineId || '',
+    machineName: already.machineName || '',
+    createdAt: already.createdAt || TS(),
+    linkedAt: TS(),
+  }).catch(() => {});
   await ref.delete().catch(() => {});
-  return { uid: String(d.uid) };
+  return { uid };
 }
 
 export async function bindingFor(uid) {
@@ -59,8 +67,22 @@ export async function bindingFor(uid) {
   return snap.data();
 }
 
+/** Reverse lookup: binding by Telegram chat id (bot side). */
+export async function bindingForChat(chatId) {
+  const q = await db().collection('pc_bindings').where('chatId', '==', String(chatId)).limit(1).get().catch(() => null);
+  if (!q || q.empty) return null;
+  return { uid: q.docs[0].id, ...q.docs[0].data() };
+}
+
 export async function unbind(uid) {
   await db().collection('pc_bindings').doc(String(uid)).delete().catch(() => {});
+  // Pending tasks die with the link — a stolen phone moment ends here.
+  const q = await db().collection('pc_tasks').where('uid', '==', String(uid)).get().catch(() => null);
+  if (q) {
+    const batch = db().batch();
+    q.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit().catch(() => {});
+  }
 }
 
 export async function pushApproval(uid, chatId, item) {
@@ -105,4 +127,111 @@ export async function decide(approvalId, approved) {
   if (!snap.exists) return false;
   await ref.update({ decision: !!approved, decidedAt: TS() }).catch(() => {});
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// Remote tasks: phone → PC. A task runs ONLY on the machine named in the
+// binding, ONLY from the bound chat, and ONLY after an explicit confirm tap.
+// Every state change is a separate doc write so the audit trail survives.
+// ---------------------------------------------------------------------------
+
+const TASK_TTL_MS = 30 * 60_000;
+
+/** Register/update this PC under the user's binding. Called on link start. */
+export async function registerMachine(uid, machineId, machineName) {
+  const ref = db().collection('pc_bindings').doc(String(uid));
+  const snap = await ref.get();
+  const patch = {
+    machineId: String(machineId || ''),
+    machineName: String(machineName || 'My PC').slice(0, 80),
+    machineSeenAt: TS(),
+  };
+  if (snap.exists) await ref.update(patch).catch(() => {});
+  else await ref.set({ chatId: null, bot: 'code', createdAt: TS(), ...patch }).catch(() => {});
+}
+
+/** Draft a phone task awaiting the user's confirm tap. Returns runId. */
+export async function draftRun(uid, chatId, instructions) {
+  const runId = crypto.randomBytes(16).toString('hex');
+  await db().collection('pc_runs').doc(runId).set({
+    uid: String(uid),
+    chatId: String(chatId),
+    instructions: String(instructions).slice(0, 4000),
+    status: 'proposed',
+    createdAt: TS(),
+    expiresAt: new Date(Date.now() + TASK_TTL_MS),
+  });
+  return runId;
+}
+
+export async function getRun(runId) {
+  const snap = await db().collection('pc_runs').doc(String(runId)).get();
+  return snap.exists ? { id: snap.id, ...snap.data() } : null;
+}
+
+/** Confirm a draft → queued task for the bound machine. Single-use. */
+export async function confirmRun(runId, uid) {
+  const ref = db().collection('pc_runs').doc(String(runId));
+  const snap = await ref.get();
+  if (!snap.exists) throw Object.assign(new Error('Run not found.'), { code: 404 });
+  const d = snap.data();
+  if (String(d.uid) !== String(uid)) throw Object.assign(new Error('Not your run.'), { code: 403 });
+  if (d.status !== 'proposed') throw Object.assign(new Error('Already handled.'), { code: 409 });
+  if (d.expiresAt?.toMillis?.() < Date.now()) throw Object.assign(new Error('Expired.'), { code: 410 });
+  const taskId = crypto.randomBytes(16).toString('hex');
+  await db().collection('pc_tasks').doc(taskId).set({
+    uid: String(uid),
+    chatId: String(d.chatId || ''),
+    instructions: d.instructions,
+    status: 'queued',
+    runId,
+    createdAt: TS(),
+    expiresAt: new Date(Date.now() + TASK_TTL_MS),
+  });
+  await ref.update({ status: 'confirmed', taskId }).catch(() => {});
+  return taskId;
+}
+
+export async function cancelRun(runId, uid) {
+  const ref = db().collection('pc_runs').doc(String(runId));
+  const snap = await ref.get();
+  if (!snap.exists) return false;
+  if (String(snap.data().uid) !== String(uid)) return false;
+  await ref.update({ status: 'cancelled' }).catch(() => {});
+  return true;
+}
+
+/** PC long-polls this: oldest queued, unexpired task for MY machine. */
+export async function claimTask(uid, machineId) {
+  const q = await db()
+    .collection('pc_tasks')
+    .where('uid', '==', String(uid))
+    .where('status', '==', 'queued')
+    .get();
+  const now = Date.now();
+  const docs = q.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((t) => !(t.expiresAt?.toMillis?.() < now))
+    .sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
+  // Machine scoping: prefer tasks with no machine yet (bind first claim),
+  // else only tasks already assigned to THIS machine.
+  const mine =
+    docs.find((t) => !t.machineId) || docs.find((t) => String(t.machineId) === String(machineId));
+  if (!mine) return null;
+  await db().collection('pc_tasks').doc(mine.id).update({
+    status: 'running',
+    machineId: String(machineId),
+    startedAt: TS(),
+  }).catch(() => {});
+  return mine;
+}
+
+/** PC reports back: delivers the result text for the bot to forward. */
+export async function finishTask(taskId, uid, ok, summary) {
+  const ref = db().collection('pc_tasks').doc(String(taskId));
+  const snap = await ref.get();
+  if (!snap.exists || String(snap.data().uid) !== String(uid)) return null;
+  const data = { status: ok ? 'done' : 'failed', result: String(summary || '').slice(0, 4000) };
+  await ref.update({ ...data, finishedAt: TS() }).catch(() => {});
+  return { ...snap.data(), ...data };
 }

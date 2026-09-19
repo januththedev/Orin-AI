@@ -156,9 +156,40 @@ export async function handleTelegramUpdate(req, res, opts) {
         reply_to_message_id: replyTo,
       });
     }
+
+    // Orin Code bot: task-like messages from a LINKED chat get a one-tap
+    // "run it on the PC" offer. Nothing runs without the confirm tap.
+    if (opts.remoteRuns && looksLikeTask(question)) {
+      try {
+        const { bindingForChat, draftRun } = await import('./pclink.js');
+        const binding = await bindingForChat(chatId);
+        if (binding?.machineId) {
+          const runId = await draftRun(binding.uid, chatId, question);
+          await tg(token, 'sendMessage', {
+            chat_id: chatId,
+            text: `Run this on ${binding.machineName || 'your PC'}?`,
+            reply_to_message_id: replyTo,
+            reply_markup: {
+              inline_keyboard: [[
+                { text: '▶ Run on PC', callback_data: `pc:run:${runId}` },
+                { text: '✖ Cancel', callback_data: `pc:cancel:${runId}` },
+              ]],
+            },
+          });
+        }
+      } catch {}
+    }
   } catch {
     // Already acked — never fail the webhook.
   }
+}
+
+/** Task-like opener verbs — keeps the Run offer off pure chit-chat. */
+const TASK_VERBS = /^(fix|change|update|add|create|build|refactor|rewrite|run|edit|delete|remove|rename|move|install|clean|deploy|commit|push|test|debug|migrate|convert|implement|write|generate|make|set up|setup|configure|please)\b/i;
+
+function looksLikeTask(question) {
+  const first = String(question || '').trim().split('\n')[0].slice(0, 120);
+  return TASK_VERBS.test(first) && first.length > 12;
 }
 
 /** /link CODE — claim a PC pairing code for this chat. */
@@ -181,7 +212,7 @@ async function handleLinkCommand(token, message, question) {
   }
 }
 
-/** Approve/Deny button taps from PC approval pushes. */
+/** Approve/Deny + Run/Cancel button taps. */
 async function handleCallback(token, callback) {
   const chatId = callback.message?.chat?.id;
   const id = callback.id;
@@ -189,6 +220,34 @@ async function handleCallback(token, callback) {
     await tg(token, 'answerCallbackQuery', { callback_query_id: id, text });
   };
   const data = String(callback.data || '');
+
+  // Remote task confirm/cancel (Orin Code bot): pc:run:<runId> / pc:cancel:<runId>.
+  // The run's own chat must match this chat — cross-chat taps are refused.
+  let runMatch = /^(pc:run|pc:cancel):(.+)$/.exec(data);
+  if (runMatch) {
+    try {
+      const { getRun, confirmRun, cancelRun } = await import('./pclink.js');
+      const run = await getRun(runMatch[2]);
+      if (!run || String(run.chatId) !== String(chatId)) {
+        await answer('Not your run.');
+        return;
+      }
+      if (runMatch[1] === 'pc:cancel') {
+        await cancelRun(runMatch[2], run.uid);
+        await answer('Cancelled.');
+        await editRunMessage(token, callback, 'Cancelled — nothing will run.');
+        return;
+      }
+      const taskId = await confirmRun(runMatch[2], run.uid);
+      await answer('Sent to your PC ✓');
+      await editRunMessage(token, callback, `Sent to ${run.machineName || 'your PC'} — I'll report back here when it's done.`);
+      void taskId;
+    } catch (e) {
+      await answer(e?.message || 'Failed.');
+    }
+    return;
+  }
+
   const match = /^(pc:approve|pc:deny):(.+)$/.exec(data);
   if (!match) {
     await answer('Unknown button.');
@@ -200,14 +259,23 @@ async function handleCallback(token, callback) {
     const { decide } = await import('./pclink.js');
     const ok = await decide(approvalId, approved);
     await answer(ok ? (approved ? 'Approved ✓' : 'Denied.') : 'Already resolved.');
-    if (chatId && callback.message?.message_id) {
-      await tg(token, 'editMessageText', {
-        chat_id: chatId,
-        message_id: callback.message.message_id,
-        text: `${callback.message.text || 'Orin Code asks'}${ok ? (approved ? '\n\n✅ Approved' : '\n\n❌ Denied') : '\n\nAlready resolved.'}`,
-      });
-    }
+    await editRunMessage(
+      token,
+      callback,
+      ok ? (approved ? 'Approved' : 'Denied') : 'Already resolved.',
+    );
   } catch {
     await answer('Failed — try again.');
+  }
+}
+
+async function editRunMessage(token, callback, suffix) {
+  const chatId = callback.message?.chat?.id;
+  if (chatId && callback.message?.message_id) {
+    await tg(token, 'editMessageText', {
+      chat_id: chatId,
+      message_id: callback.message.message_id,
+      text: `${callback.message.text || 'Orin Code asks'}\n\n${suffix}`,
+    });
   }
 }
