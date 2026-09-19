@@ -280,8 +280,23 @@ function truncate(text, limit) {
 }
 
 /**
+ * Classify an HTTP outcome into router action. Exported for tests.
+ * - 'retry'    → cool this key, try the NEXT KEY (429/5xx/timeout/empty).
+ * - 'dead-key' → this key's credentials are bad, quarantine it for the rest
+ *                 of the request and try the NEXT KEY (401/403).
+ * - 'hop'      → the MODEL is the problem, skip to the NEXT MODEL (400/404).
+ */
+export function classifyStatus(status) {
+  if (status === 429 || status >= 500 || status === 0) return 'retry';
+  if (status === 401 || status === 403) return 'dead-key';
+  if (status === 400 || status === 404) return 'hop';
+  return 'hop';
+}
+
+/**
  * One attempt against OpenRouter with a single key.
- * Returns { ok, text, thinking, retryable }.
+ * Returns { ok, text, thinking, action } where action is one of the
+ * classifyStatus() outcomes ('retry' only when the body was unusable).
  */
 async function attempt(key, model, messages, wantThinking, extra = {}) {
   const ctrl = new AbortController();
@@ -300,12 +315,12 @@ async function attempt(key, model, messages, wantThinking, extra = {}) {
       },
       body: JSON.stringify(body),
     });
-    if (res.status === 429 || res.status >= 500) return { ok: false, retryable: true };
-    if (!res.ok) return { ok: false, retryable: false };
+    if (res.status === 429 || res.status >= 500) return { ok: false, action: 'retry' };
+    if (!res.ok) return { ok: false, action: classifyStatus(res.status) };
     const json = await res.json().catch(() => ({}));
     const message = json.choices?.[0]?.message;
     const text = (message?.content || '').trim();
-    if (!text) return { ok: false, retryable: true };
+    if (!text) return { ok: false, action: 'retry' };
     let thinking = '';
     if (wantThinking) {
       const raw = message?.reasoning;
@@ -322,37 +337,65 @@ async function attempt(key, model, messages, wantThinking, extra = {}) {
     }
     return { ok: true, text, thinking };
   } catch {
-    return { ok: false, retryable: true };
+    return { ok: false, action: 'retry' };
   } finally {
     clearTimeout(timer);
   }
 }
 
 /**
- * Route across the chain × key pool. First success wins.
+ * Route across the chain × key pool. First success wins — and a dead pool
+ * never blocks the next model:
+ *   - bad-credential keys are quarantined for the rest of the request,
+ *   - model-level rejections skip straight to the next model in the tier,
+ *   - if every key is cooling down, one last-resort pass ignores cooldowns
+ *     rather than failing instantly.
  * onAttempt({ model, keyLast4, ok }) feeds logs / analytics.
  */
 export async function route(chain, messages, { wantThinking = false, extra = {}, onAttempt = null } = {}) {
-  const keys = PROVIDER_POOLS.openrouter().filter((k) => (health.get(k) || 0) < Date.now());
-  if (!keys.length) throw new Error('No OpenRouter keys configured (set OPENROUTER_1 … in Vercel).');
+  const allKeys = PROVIDER_POOLS.openrouter();
+  if (!allKeys.length) throw new Error('No OpenRouter keys configured (set OPENROUTER_1 … in Vercel).');
   const errors = [];
-  for (const model of chain) {
-    for (const key of keys) {
-      const r = await attempt(key, model, messages, wantThinking, extra);
-      if (onAttempt) {
-        try { onAttempt({ model, keyLast4: last4(key), ok: r.ok }); } catch {}
-      }
-      if (r.ok) return { text: r.text, thinking: r.thinking || '', model };
-      if (r.retryable) {
-        health.set(key, Date.now() + COOLDOWN_MS);
-        errors.push(`${model}: retryable`);
-      } else {
+  const dead = new Set();
+  let attempts = 0;
+
+  const pass = async (ignoreCooldown) => {
+    for (const model of chain) {
+      for (const key of allKeys) {
+        if (dead.has(key)) continue;
+        if (!ignoreCooldown && (health.get(key) || 0) >= Date.now()) continue;
+        attempts++;
+        const r = await attempt(key, model, messages, wantThinking, extra);
+        if (onAttempt) {
+          try { onAttempt({ model, keyLast4: last4(key), ok: r.ok }); } catch {}
+        }
+        if (r.ok) return { text: r.text, thinking: r.thinking || '', model };
+        if (r.action === 'dead-key') {
+          dead.add(key);
+          errors.push(`${model}: bad key`);
+          continue; // next key, same model — others may be fine
+        }
+        if (r.action === 'retry') {
+          health.set(key, Date.now() + COOLDOWN_MS);
+          errors.push(`${model}: retryable`);
+          continue; // next key, same model
+        }
         errors.push(`${model}: rejected`);
-        break; // config-level failure — don't burn the other keys on it
+        break; // model-level problem — next model in the tier
       }
     }
+    return null;
+  };
+
+  const first = await pass(false);
+  if (first) return first;
+  if (attempts === 0) {
+    // Nothing was even tried — every key is cooling down. Try once more
+    // anyway instead of failing instantly.
+    const lastResort = await pass(true);
+    if (lastResort) return lastResort;
   }
-  throw new Error(`All providers failed: ${errors.join('; ')}`);
+  throw new Error(`All providers failed: ${errors.join('; ') || 'all keys cooling down'}`);
 }
 
 /** Resolve which chain + pinned model to use for a chat request. */
