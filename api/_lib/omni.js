@@ -12,17 +12,19 @@
  * unknown-model errors skip the rest of that hop (never burn good keys on a
  * config error). Keys are never logged — only last-4 in server logs.
  *
- * Free-only policy: every chain below uses OpenRouter `:free` models.
- *   - coding   → best free coding model first (Poolside Laguna M.1)
- *   - thinking → highest-intelligence free model (Nemotron 3 Ultra 550B)
- *   - balanced → fast + smart free model (Qwen3 Next 80B)
- *   - cheap    → tiny free model for titles / memory / math helpers
+ * Free-only policy: chains are picked LIVE from OpenRouter's catalog on every
+ * need (cached 1 h): coding → best free coding model, thinking → highest
+ * intelligence free model, balanced → fastest smart free model, cheap → tiny
+ * free model for titles/memory/helpers. Static FALLBACK_CHAINS below apply
+ * only when the catalog is unreachable — nothing ever hardcodes the winner.
  */
 
 const COOLDOWN_MS = 60_000;
 const TIMEOUT_MS = 60_000;
 const MAX_NUMBERED = 20;
 const THINKING_CHAR_LIMIT = 4000;
+const CATALOG_URL = 'https://openrouter.ai/api/v1/models';
+const CATALOG_TTL_MS = 60 * 60 * 1000;
 
 /** In-memory per-key health: key -> cooledUntil timestamp. */
 const health = new Map();
@@ -52,8 +54,8 @@ export const PROVIDER_POOLS = {
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-/** Free-model chains. `openrouter/free` (auto router) is always last resort. */
-export const CHAINS = {
+/** Static fallback chains (catalog unreachable). `openrouter/free` is last. */
+export const FALLBACK_CHAINS = {
   coding: [
     'poolside/laguna-m.1:free',
     'poolside/laguna-xs-2.1:free',
@@ -78,30 +80,162 @@ export const CHAINS = {
   ],
 };
 
-/** The model list the UI shows, per tier. Labels are display-only. */
-export const MODEL_CATALOG = {
-  coding: [
-    { id: 'poolside/laguna-m.1:free', label: 'Laguna M.1 · best free coder', default: true },
-    { id: 'poolside/laguna-xs-2.1:free', label: 'Laguna XS 2.1 · fast coder' },
-    { id: 'cohere/north-mini-code:free', label: 'North Mini Code' },
-  ],
-  thinking: [
-    { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', label: 'Nemotron 3 Ultra · deepest', default: true },
-    { id: 'qwen/qwen3-next-80b-a3b-instruct:free', label: 'Qwen3 Next 80B' },
-    { id: 'openai/gpt-oss-20b:free', label: 'GPT-OSS 20B' },
-  ],
-  balanced: [
-    { id: 'qwen/qwen3-next-80b-a3b-instruct:free', label: 'Qwen3 Next 80B · balanced', default: true },
-    { id: 'openai/gpt-oss-20b:free', label: 'GPT-OSS 20B · quick' },
-  ],
-};
+// Back-compat alias (static snapshot for callers that can't await).
+export const CHAINS = FALLBACK_CHAINS;
 
-const ALLOWED_MODELS = new Set(
-  Object.values(MODEL_CATALOG).flat().map((m) => m.id).concat(['openrouter/free']),
-);
+/** Live catalog: fetched from OpenRouter, cached 1 h, stale on failure. */
+let catalogCache = { at: 0, models: [] };
 
-export function isAllowedModel(id) {
-  return ALLOWED_MODELS.has(id);
+function isFreeModel(m) {
+  if (typeof m.id === 'string' && m.id.endsWith(':free')) return true;
+  const p = m.pricing || {};
+  return Number(p.prompt) === 0 && Number(p.completion) === 0 && !!m.id;
+}
+
+async function fetchCatalog() {
+  if (Date.now() - catalogCache.at < CATALOG_TTL_MS && catalogCache.models.length) {
+    return catalogCache.models;
+  }
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15_000);
+  try {
+    const res = await fetch(CATALOG_URL, {
+      signal: ctrl.signal,
+      headers: { 'HTTP-Referer': 'https://orinai.org', 'X-Title': 'Orin AI' },
+    });
+    if (!res.ok) throw new Error(`catalog HTTP ${res.status}`);
+    const json = await res.json().catch(() => ({}));
+    const models = (json.data || [])
+      .filter(isFreeModel)
+      .map((m) => ({
+        id: m.id,
+        context_length: m.context_length || 0,
+        created: m.created || 0,
+        supported_parameters: m.supported_parameters || [],
+      }));
+    if (models.length) catalogCache = { at: Date.now(), models };
+    return catalogCache.models;
+  } catch {
+    return catalogCache.models; // stale or empty → caller falls back
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Billions of params from ids like `…-550b-…`, `…-3b-…`. */
+function paramsOf(m) {
+  const hit = /(\d+(?:\.\d+)?)b(?!its)/i.exec(m.id);
+  return hit ? parseFloat(hit[1]) : null;
+}
+
+function supportsReasoning(m) {
+  const p = m.supported_parameters;
+  return Array.isArray(p) && (p.includes('reasoning') || p.includes('include_reasoning'));
+}
+
+function isFresh(m) {
+  return m.created * 1000 > Date.now() - 180 * 24 * 60 * 60 * 1000;
+}
+
+/** Coding: code-named models first, then big context + serious size. */
+function scoreCoding(m) {
+  const id = m.id.toLowerCase();
+  let s = 0;
+  if (/coder|coding|\bcode\b|laguna|devstral|codestral|kat-coder|deepseek|qwq/.test(id)) s += 100;
+  else if (/instruct|chat/.test(id)) s += 25;
+  if (supportsReasoning(m)) s += 10;
+  s += Math.min(30, (m.context_length || 0) / 1024 / 8);
+  const p = paramsOf(m);
+  if (p && p >= 20 && p <= 600) s += 10;
+  if (isFresh(m)) s += 10;
+  return s;
+}
+
+/** Thinking: raw intelligence — reasoning support + parameter scale. */
+function scoreThinking(m) {
+  const p = paramsOf(m);
+  let s = 0;
+  if (supportsReasoning(m)) s += 60;
+  s += p ? Math.min(50, Math.log10(Math.max(p, 1)) * 25) : 15;
+  s += Math.min(20, (m.context_length || 0) / 1024 / 50);
+  if (p && p < 7) s -= 30; // too small to reason deeply
+  if (isFresh(m)) s += 10;
+  return s;
+}
+
+/** Balanced: fast AND smart — mid-size instruct models, giants too slow. */
+function scoreBalanced(m) {
+  const id = m.id.toLowerCase();
+  const p = paramsOf(m);
+  let s = 0;
+  if (/instruct|chat/.test(id)) s += 30;
+  if (p) {
+    const dist = Math.abs(Math.log10(p / 30));
+    s += Math.max(0, 40 - dist * 30);
+    if (p > 300) s -= 25;
+  } else {
+    s += 20;
+  }
+  s += Math.min(20, (m.context_length || 0) / 1024 / 12);
+  if (supportsReasoning(m)) s += 10;
+  if (isFresh(m)) s += 10;
+  return s;
+}
+
+/** Cheap: tiny + quick, for titles / memory / JSON helpers. */
+function scoreCheap(m) {
+  const id = m.id.toLowerCase();
+  const p = paramsOf(m);
+  let s = 0;
+  s += p ? Math.max(0, 40 - Math.log10(Math.max(p, 1)) * 15) : 15;
+  if (/instruct|flash|mini|small|nano|lite|3b|7b|8b/.test(id)) s += 20;
+  if (isFresh(m)) s += 5;
+  return s;
+}
+
+const SCORERS = { coding: scoreCoding, thinking: scoreThinking, balanced: scoreBalanced, cheap: scoreCheap };
+
+/**
+ * Ranked live chain for a tier (top 6 + `openrouter/free` safety net).
+ * Falls back to the static list when the catalog is unreachable.
+ */
+export async function chainFor(tier) {
+  const fallback = FALLBACK_CHAINS[tier] || FALLBACK_CHAINS.balanced;
+  const models = await fetchCatalog();
+  if (!models.length) return fallback;
+  const ranked = models
+    .map((m) => ({ m, s: SCORERS[tier](m) }))
+    .sort((a, b) => b.s - a.s)
+    .map((r) => r.m.id);
+  const chain = [...new Set([...ranked.slice(0, 6), 'openrouter/free'])];
+  console.log(`[omni] live ${tier}: ${chain[0]} (+${chain.length - 1} fallbacks)`);
+  return chain;
+}
+
+function prettyLabel(id) {
+  const name = id.split('/').pop().replace(/:free$/, '').replace(/[-_]/g, ' ');
+  return name.replace(/\b\w/g, (c) => c.toUpperCase()) + ' · free';
+}
+
+/** Live catalog for GET /api/models: top 3 per tier + defaults. */
+export async function liveCatalog() {
+  const out = {};
+  const defaults = {};
+  for (const tier of ['coding', 'thinking', 'balanced']) {
+    const chain = await chainFor(tier);
+    const top = chain.filter((id) => id !== 'openrouter/free').slice(0, 3);
+    out[tier] = top.map((id, i) => ({ id, label: prettyLabel(id), default: i === 0 }));
+    if (top[0]) defaults[tier] = top[0];
+  }
+  return { tiers: out, defaults };
+}
+
+/** Pinned model allowlist: live catalog first, static snapshot fallback. */
+export async function isAllowedModel(id) {
+  if (typeof id !== 'string' || !id) return false;
+  const models = await fetchCatalog();
+  if (models.length) return models.some((m) => m.id === id);
+  return FALLBACK_CHAINS.balanced.includes(id) || FALLBACK_CHAINS.thinking.includes(id);
 }
 
 function last4(key) {
@@ -190,13 +324,16 @@ export async function route(chain, messages, { wantThinking = false, extra = {},
 }
 
 /** Resolve which chain + pinned model to use for a chat request. */
-export function resolveChain({ model, thinking } = {}) {
-  if (model && isAllowedModel(model)) return { chain: [model, ...CHAINS.balanced.filter((m) => m !== model)], pinned: model };
-  if (thinking) return { chain: CHAINS.thinking, pinned: null };
-  return { chain: CHAINS.balanced, pinned: null };
+export async function resolveChain({ model, thinking } = {}) {
+  if (model && (await isAllowedModel(model))) {
+    const balanced = await chainFor('balanced');
+    return { chain: [model, ...balanced.filter((m) => m !== model)], pinned: model };
+  }
+  if (thinking) return { chain: await chainFor('thinking'), pinned: null };
+  return { chain: await chainFor('balanced'), pinned: null };
 }
 
-/** Coding default: best free coding model first. */
-export function codingChain() {
-  return CHAINS.coding;
+/** Coding default: best free coding model first (live). */
+export async function codingChain() {
+  return chainFor('coding');
 }

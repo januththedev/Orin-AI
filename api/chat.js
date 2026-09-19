@@ -19,7 +19,7 @@ import { db, TS, verifyUser, httpError } from './_lib/firebase.js';
 import { apiHandler } from './_lib/http.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import { GoogleGenAI } from '@google/genai';
-import { PROVIDER_POOLS, CHAINS, resolveChain, route } from './_lib/omni.js';
+import { PROVIDER_POOLS, chainFor, resolveChain, route } from './_lib/omni.js';
 
 export const config = { maxDuration: 120 };
 
@@ -268,7 +268,7 @@ async function handler(req, res) {
     const wantThinking = Boolean(thinkingFlag ?? useThinking);
     // Free-only routing: explicit allowlisted model wins, else the thinking
     // chain (max intelligence) or the balanced chain (speed + smarts).
-    const { chain, pinned } = resolveChain({ model: requestedModel, thinking: wantThinking });
+    const { chain, pinned } = await resolveChain({ model: requestedModel, thinking: wantThinking });
     let result = null;
     let lastErr = null;
     try {
@@ -305,7 +305,7 @@ async function handleTitle(req, res) {
       { role: 'system', content: 'Reply with ONLY a 2-4 word title. No punctuation, no quotes.' },
       { role: 'user', content: `Chat: "${(firstMessage || '').slice(0, 120)}"` }
     ];
-    const result = await route(CHAINS.cheap, messages);
+    const result = await route(await chainFor('cheap'), messages);
     const raw = (result.text || '').trim();
     return res.status(200).json({ title: raw.replace(/^[\"'`*•\-–—]|[\"'`*•]$/g, '').replace(/^title[:\s]*/i, '').trim().slice(0, 40) || 'New Chat' });
   } catch { return res.status(200).json({ title: 'New Chat' }); }
@@ -322,7 +322,7 @@ IGNORE: greetings, math, one-off questions. REMOVE outdated info. Write in third
       { role: 'system', content: SYS },
       { role: 'user', content: `PREVIOUS MEMORY:\n${previousMemory || '(none)'}\n\nUSER: ${userPrompt}\n\nASSISTANT: ${assistantReply}` }
     ];
-    const result = await route(CHAINS.cheap, messages);
+    const result = await route(await chainFor('cheap'), messages);
     const newMemory = (result.text || '').trim();
     return res.status(200).json({ newMemory });
   } catch (err) {
@@ -482,7 +482,7 @@ Reply ONLY with valid JSON:
 
 VALID ACTIONS: navigate, search, type, fill, click, screenshot, copy, wait, done`;
   try {
-    const result = await route(CHAINS.cheap,
+    const result = await route(await chainFor('cheap'),
       [{ role: 'system', content: SYS }, { role: 'user', content: USER }],
       { extra: { response_format: { type: 'json_object' } } });
     const raw = (result.text || '').replace(/```json|```/g, '').trim();
@@ -598,7 +598,7 @@ Final Answer: …
       { role: 'user', content },
     ];
     let lastErr = null;
-    const result = await route(CHAINS.balanced, messages).catch((e) => { lastErr = e; return null; });
+    const result = await route(await chainFor('balanced'), messages).catch((e) => { lastErr = e; return null; });
     if (!result) throw lastErr || new Error('No solution returned');
     const text = result.text || '';
     if (!text) throw httpError(502, 'No solution returned');
@@ -621,7 +621,7 @@ async function handleMathExtract(req, res) {
       content.push({ type: 'image_url', image_url: { url: `data:${fileData.mimeType};base64,${fileData.data}` } });
     }
     content.push({ type: 'text', text: `${EXTRACT_PROMPT}\n\nInput: ${text || ''}` });
-    const result = await route(CHAINS.cheap,
+    const result = await route(await chainFor('cheap'),
       [{ role: 'system', content: 'Output only valid JSON. No markdown.' }, { role: 'user', content }],
       { extra: { response_format: { type: 'json_object' } } });
     const raw = (result.text || '').replace(/```json|```/g, '').trim();

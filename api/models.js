@@ -5,7 +5,7 @@
  * coding always defaults to the best free coding model. `model` sent back to
  * POST /api/chat must be one of these ids (server allowlists).
  */
-import { MODEL_CATALOG } from './_lib/omni.js';
+import { liveCatalog } from './_lib/omni.js';
 import { apiHandler } from './_lib/http.js';
 
 export const config = { maxDuration: 10 };
@@ -15,12 +15,9 @@ async function handler(req, res) {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'GET only' });
   }
-  const defaults = {};
-  for (const [tier, models] of Object.entries(MODEL_CATALOG)) {
-    const def = models.find((m) => m.default) || models[0];
-    if (def) defaults[tier] = def.id;
-  }
-  return res.status(200).json({ tiers: MODEL_CATALOG, defaults });
+  // Live selection: best free models right now, static fallback inside.
+  const catalog = await liveCatalog();
+  return res.status(200).json(catalog);
 }
 
 export default apiHandler(handler);
