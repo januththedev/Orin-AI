@@ -11,13 +11,15 @@
  * media windows) and usage is incremented authoritatively after each success —
  * the client copy is display-only and cannot be trusted.
  *
- * Env: OPENROUTER_API_KEY, GEMINI_API_KEY (API_KEY accepted as legacy alias),
+ * Env: OPENROUTER_1..20 (numbered pools; OPENROUTER_API_KEY accepted as legacy
+ *      fallback), GEMINI_API_KEY (API_KEY accepted as legacy alias),
  *      FIREBASE_SERVICE_ACCOUNT.
  */
 import { db, TS, verifyUser, httpError } from './_lib/firebase.js';
 import { apiHandler } from './_lib/http.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import { GoogleGenAI } from '@google/genai';
+import { PROVIDER_POOLS, CHAINS, resolveChain, route } from './_lib/omni.js';
 
 export const config = { maxDuration: 120 };
 
@@ -121,12 +123,7 @@ RULES:
    block is the deliverable.`;
 }
 
-function getModels(plan) {
-  const p = (plan || 'free').toLowerCase();
-  if (p === 'pro' || p === 'pro_yearly')      return ['google/gemini-2.0-flash-001', 'anthropic/claude-3.5-sonnet'];
-  if (p === 'basic' || p === 'basic_yearly')  return ['google/gemini-2.0-flash-001', 'openai/gpt-4o-mini'];
-  return ['google/gemini-2.0-flash-001'];
-}
+// getModels retired — free-model chains live in api/_lib/omni.js CHAINS.
 
 function getContextLimit(plan) {
   const p = (plan || 'free').toLowerCase();
@@ -158,56 +155,7 @@ async function getFilesText(uid, fileIds) {
   } catch { return ''; }
 }
 
-async function callOpenRouter(apiKey, model, messages, options = {}) {
-  // When ROUTER_BASE_URL is set, all text traffic goes through the Orin AI
-  // router instance (OmniRoute — OpenAI-compatible /v1 endpoint, gives the
-  // admin dashboard token/model analytics + provider fallback). Direct
-  // OpenRouter remains the fallback so chat never hard-breaks if the router
-  // instance is down.
-  const routerBase = (process.env.ROUTER_BASE_URL || '').replace(/\/+$/, '');
-  const url = routerBase
-    ? `${routerBase}/v1/chat/completions`
-    : "https://openrouter.ai/api/v1/chat/completions";
-  const authKey = routerBase
-    ? (process.env.ROUTER_API_KEY || apiKey)
-    : apiKey;
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${authKey}`,
-      "HTTP-Referer": "https://orinai.org",
-      "X-Title": "Orin AI",
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ model, messages, ...options })
-  });
-
-  if (!response.ok) {
-    if (routerBase) {
-      console.error(`[api/chat] router ${response.status}; failing over to OpenRouter direct`);
-      const direct = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "HTTP-Referer": "https://orinai.org",
-          "X-Title": "Orin AI",
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ model, messages, ...options })
-      });
-      if (!direct.ok) {
-        const error = await direct.json().catch(() => ({}));
-        throw new Error(error.error?.message || "OpenRouter API error");
-      }
-      return direct.json();
-    }
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.error?.message || "OpenRouter API error");
-  }
-
-  return response.json();
-}
+// callOpenRouter retired — all text routes through api/_lib/omni.js route() (owner key pools).
 
 // ── Gemini (media + tool modes) ───────────────────────────────────────────────
 let _gemini = null;
@@ -238,7 +186,7 @@ function extractLinks(response) {
 async function handler(req, res) {
   if (req.method === 'GET') {
     // Minimal health probe — no configuration details exposed.
-    return res.status(200).json({ ok: !!process.env.OPENROUTER_API_KEY });
+    return res.status(200).json({ ok: PROVIDER_POOLS.openrouter().length > 0 });
   }
   if (req.method !== 'POST') throw httpError(405, 'POST only');
 
@@ -269,8 +217,7 @@ async function handler(req, res) {
   }
 
   // ── Plain chat (OpenRouter, optionally via the Orin router) ─────────────────
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw httpError(500, 'OPENROUTER_API_KEY not configured');
+  if (!PROVIDER_POOLS.openrouter().length) throw httpError(500, 'No OpenRouter keys configured (set OPENROUTER_1 … in Vercel)');
 
   const {
     prompt,
@@ -280,6 +227,9 @@ async function handler(req, res) {
     tone = 'neutral',
     descriptive = false,
     isPrivate = false,
+    thinking: thinkingFlag,
+    useThinking,
+    model: requestedModel,
   } = body;
 
   if (!prompt && !fileData) throw httpError(400, 'prompt required');
@@ -315,20 +265,31 @@ async function handler(req, res) {
     }
     messages.push({ role: 'user', content: currentContent });
 
-    const models = getModels(effectivePlan);
-    let response = null;
+    const wantThinking = Boolean(thinkingFlag ?? useThinking);
+    // Free-only routing: explicit allowlisted model wins, else the thinking
+    // chain (max intelligence) or the balanced chain (speed + smarts).
+    const { chain, pinned } = resolveChain({ model: requestedModel, thinking: wantThinking });
+    let result = null;
     let lastErr = null;
-    for (const model of models) {
-      try {
-        response = await callOpenRouter(apiKey, model, messages);
-        break;
-      } catch (e) { lastErr = e; }
-    }
-    if (!response) throw lastErr;
+    try {
+      result = await route(chain, messages, {
+        wantThinking,
+        onAttempt: ({ model, keyLast4, ok }) =>
+          console.log(`[api/chat] omni ${ok ? 'ok' : 'fail'} model=${model} key=…${keyLast4}`),
+      });
+    } catch (e) { lastErr = e; }
+    if (!result) throw lastErr || new Error('No response');
 
-    const text = response.choices?.[0]?.message?.content || "";
+    const text = (result.text || "").trim();
     incrementUsage(uid, 'text');
-    return res.status(200).json({ text: text.trim(), links: [], reasoning_details: [] });
+    return res.status(200).json({
+      text,
+      thinking: result.thinking || '',
+      model: result.model,
+      pinned: pinned || null,
+      links: [],
+      reasoning_details: [],
+    });
   } catch (err) {
     if (err.code === 429) throw err;
     console.error('[api/chat] error:', err);
@@ -338,24 +299,20 @@ async function handler(req, res) {
 
 // ── Title (cheap OpenRouter model) ───────────────────────────────────────────
 async function handleTitle(req, res) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) return res.status(200).json({ title: 'New Chat' });
   const { firstMessage } = req.body || {};
   try {
     const messages = [
       { role: 'system', content: 'Reply with ONLY a 2-4 word title. No punctuation, no quotes.' },
       { role: 'user', content: `Chat: "${(firstMessage || '').slice(0, 120)}"` }
     ];
-    const response = await callOpenRouter(apiKey, 'google/gemini-2.0-flash-lite-preview-02-05:free', messages, { max_tokens: 12 });
-    const raw = (response.choices?.[0]?.message?.content || '').trim();
+    const result = await route(CHAINS.cheap, messages);
+    const raw = (result.text || '').trim();
     return res.status(200).json({ title: raw.replace(/^[\"'`*•\-–—]|[\"'`*•]$/g, '').replace(/^title[:\s]*/i, '').trim().slice(0, 40) || 'New Chat' });
   } catch { return res.status(200).json({ title: 'New Chat' }); }
 }
 
 // ── Memory update (OpenRouter) ───────────────────────────────────────────────
 async function handleMemoryUpdate(req, res) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw httpError(500, 'OPENROUTER_API_KEY not configured');
   const { previousMemory, userPrompt, assistantReply } = req.body || {};
   const SYS = `You are a memory manager for a personal AI assistant.
 RULES: Output ONLY the updated memory (3-6 sentences max). Include: name, job, preferences, context.
@@ -365,8 +322,8 @@ IGNORE: greetings, math, one-off questions. REMOVE outdated info. Write in third
       { role: 'system', content: SYS },
       { role: 'user', content: `PREVIOUS MEMORY:\n${previousMemory || '(none)'}\n\nUSER: ${userPrompt}\n\nASSISTANT: ${assistantReply}` }
     ];
-    const response = await callOpenRouter(apiKey, 'google/gemini-2.0-flash-001', messages);
-    const newMemory = (response.choices?.[0]?.message?.content || '').trim();
+    const result = await route(CHAINS.cheap, messages);
+    const newMemory = (result.text || '').trim();
     return res.status(200).json({ newMemory });
   } catch (err) {
     throw httpError(500, 'Memory update failed');
@@ -513,8 +470,6 @@ async function handleComputerUse(req, res) {
 
 // ── Agent plan (OpenRouter JSON) ─────────────────────────────────────────────
 async function handleAgentPlan(req, res) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw httpError(500, 'OPENROUTER_API_KEY not configured');
   const { task } = req.body || {};
   if (!task) throw httpError(400, 'task required');
   const SYS = `Output only valid JSON. No markdown. No explanation.`;
@@ -527,10 +482,10 @@ Reply ONLY with valid JSON:
 
 VALID ACTIONS: navigate, search, type, fill, click, screenshot, copy, wait, done`;
   try {
-    const response = await callOpenRouter(apiKey, 'google/gemini-2.0-flash-001',
+    const result = await route(CHAINS.cheap,
       [{ role: 'system', content: SYS }, { role: 'user', content: USER }],
-      { response_format: { type: 'json_object' } });
-    const raw = (response.choices?.[0]?.message?.content || '').replace(/```json|```/g, '').trim();
+      { extra: { response_format: { type: 'json_object' } } });
+    const raw = (result.text || '').replace(/```json|```/g, '').trim();
     return res.status(200).json(JSON.parse(raw));
   } catch (err) {
     if (err.code) throw err;
@@ -619,8 +574,6 @@ async function handleDeepResearch(req, res) {
 
 // ── Math solve (OpenRouter with strict tutor persona) ────────────────────────
 async function handleMath(req, res, usageInfo) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw httpError(500, 'OPENROUTER_API_KEY not configured');
   const { prompt, fileData } = req.body || {};
   if (!prompt && !fileData) throw httpError(400, 'prompt required');
   const MATH_SYS = `You are a professional math tutor like Symbolab or Wolfram Alpha.
@@ -644,14 +597,10 @@ Final Answer: …
       { role: 'system', content: MATH_SYS },
       { role: 'user', content },
     ];
-    const models = getModels(usageInfo?.plan || 'free');
-    let response = null, lastErr = null;
-    for (const model of models) {
-      try { response = await callOpenRouter(apiKey, model, messages); break; }
-      catch (e) { lastErr = e; }
-    }
-    if (!response) throw lastErr;
-    const text = response.choices?.[0]?.message?.content || '';
+    let lastErr = null;
+    const result = await route(CHAINS.balanced, messages).catch((e) => { lastErr = e; return null; });
+    if (!result) throw lastErr || new Error('No solution returned');
+    const text = result.text || '';
     if (!text) throw httpError(502, 'No solution returned');
     return res.status(200).json({ text });
   } catch (err) {
@@ -662,8 +611,6 @@ Final Answer: …
 
 // ── Math expression extractor (OpenRouter JSON) ──────────────────────────────
 async function handleMathExtract(req, res) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw httpError(500, 'OPENROUTER_API_KEY not configured');
   const { text, fileData } = req.body || {};
   const EXTRACT_PROMPT = `You are a mathematical expression extractor. Return ONLY raw JSON, no markdown.
 {"type":"quadratic|linear|system|calculus|trigonometry|matrix|statistics|unknown","expression":"raw math string","latexExpression":"LaTeX","variable":"x","operation":"solve|simplify|differentiate|integrate|factor|expand","extraValues":{},"confidence":0.9,"unreadable":false}`;
@@ -674,10 +621,10 @@ async function handleMathExtract(req, res) {
       content.push({ type: 'image_url', image_url: { url: `data:${fileData.mimeType};base64,${fileData.data}` } });
     }
     content.push({ type: 'text', text: `${EXTRACT_PROMPT}\n\nInput: ${text || ''}` });
-    const response = await callOpenRouter(apiKey, 'google/gemini-2.0-flash-001',
+    const result = await route(CHAINS.cheap,
       [{ role: 'system', content: 'Output only valid JSON. No markdown.' }, { role: 'user', content }],
-      { response_format: { type: 'json_object' } });
-    const raw = (response.choices?.[0]?.message?.content || '').replace(/```json|```/g, '').trim();
+      { extra: { response_format: { type: 'json_object' } } });
+    const raw = (result.text || '').replace(/```json|```/g, '').trim();
     return res.status(200).json(JSON.parse(raw));
   } catch {
     return res.status(200).json(FALLBACK);

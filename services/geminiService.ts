@@ -200,9 +200,11 @@ export class GeminiService {
     history?: ChatMessage[];
     signal?: AbortSignal;
     isPrivate?: boolean;
+    /** Explicit free-model id from /api/models (allowlisted server-side). */
+    model?: string;
     /** Internal/system calls (e.g. release summaries) should not consume user quota. */
     internal?: boolean;
-  } = {}): Promise<{ text: string; links: GroundingLink[]; reasoning_details?: any }> {
+  } = {}): Promise<{ text: string; links: GroundingLink[]; reasoning_details?: any; thinking?: string; model?: string }> {
     // ── Plan / guest limit check ──────────────────────────────────────────
     if (this.currentUser) {
       const limitReached = await firebaseService.checkLimit(this.currentUser.id, 'text');
@@ -242,6 +244,8 @@ export class GeminiService {
           tone:        (options as any).tone || 'neutral',
           plan,
           useThinking: !!options.useThinking,
+          thinking:    !!options.useThinking,
+          model:       options.model || null,
           descriptive: !!options.descriptive,
           grounding:   options.grounding || null,
           isPrivate:   !!options.isPrivate,
@@ -282,6 +286,8 @@ export class GeminiService {
         text:              data.text || "I couldn't generate a response. Please try again.",
         links:             data.links || [],
         reasoning_details: data.reasoning_details,
+        thinking:          data.thinking || '',
+        model:             data.model || '',
       };
     } catch (e: unknown) {
       if (e instanceof Error && e.name === 'AbortError') throw e;
