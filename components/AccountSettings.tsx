@@ -158,6 +158,32 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
     }
   };
 
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const handleGoogle = async () => {
+    setLoading(true); setGoogleBusy(true); setAuthMsg(null);
+    try {
+      await firebaseService.loginWithGoogle();
+      // Popup path resolves signed-in; redirect path returns null and the
+      // app's auth listener completes sign-in after the round trip.
+      await finalizeSignIn();
+    } catch (err: any) {
+      const code = err?.code || '';
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        // User dismissed — not an error worth showing.
+      } else if (code === 'auth/unauthorized-domain') {
+        setAuthMsg({ kind: 'err', text: 'This domain is not authorized for sign-in. Add it in Firebase Console → Authentication → Settings → Authorized domains.' });
+      } else if (code === 'auth/operation-not-allowed') {
+        setAuthMsg({ kind: 'err', text: 'Google sign-in is switched off. Enable the Google provider in Firebase Console → Authentication → Sign-in method.' });
+      } else if (code === 'auth/account-exists-with-different-credential') {
+        setAuthMsg({ kind: 'err', text: 'This email already has an account — sign in with your password instead.' });
+      } else {
+        setAuthMsg({ kind: 'err', text: err?.message || 'Google sign-in failed.' });
+      }
+    } finally {
+      setLoading(false); setGoogleBusy(false);
+    }
+  };
+
   const handleLogout = async () => {
     await firebaseService.logout();
     window.location.hash = 'chat';
@@ -227,6 +253,22 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
                     : resetToken ? 'Set new password' : 'Find my account'}
                 </button>
               </form>
+
+              <div className="w-full flex items-center gap-4" aria-hidden="true">
+                <span className="flex-1 h-px bg-stone-200 dark:bg-white/10" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-stone-400">or</span>
+                <span className="flex-1 h-px bg-stone-200 dark:bg-white/10" />
+              </div>
+              <button onClick={handleGoogle} disabled={loading}
+                className="w-full py-3.5 rounded-2xl bg-white dark:bg-stone-900 border border-stone-300 dark:border-white/10 text-stone-800 dark:text-white text-[11px] font-black uppercase tracking-widest hover:bg-black/[0.03] dark:hover:bg-white/[0.05] disabled:opacity-50 transition-colors flex items-center justify-center gap-2.5">
+                <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="#4285F4" d="M23.5 12.3c0-.9-.1-1.5-.3-2.3H12v4.5h6.5c-.1 1.1-.8 2.7-2.4 3.8l-.1.1 3.5 2.7.2.1c2.2-2 3.8-5 3.8-8.9z" />
+                  <path fill="#34A853" d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.8-2.9c-1 .7-2.4 1.2-4.1 1.2-3.1 0-5.8-2.1-6.8-5l-.1.1-3.6 2.8v.1C3.5 21.3 7.5 24 12 24z" />
+                  <path fill="#FBBC05" d="M5.2 14.4c-.2-.7-.4-1.5-.4-2.4s.1-1.7.4-2.4l-.1-.1-3.6-2.8-.1.1C.5 8.6 0 10.2 0 12s.5 3.4 1.4 4.9l3.8-2.5z" />
+                  <path fill="#EA4335" d="M12 4.7c1.8 0 3 .8 3.7 1.4l3.3-3.2C17.9 1.1 15.2 0 12 0 7.5 0 3.5 2.7 1.4 6.6l3.8 2.9c1-2.9 3.7-4.8 6.8-4.8z" />
+                </svg>
+                {googleBusy ? 'Opening Google…' : 'Continue with Google'}
+              </button>
 
               {canBrowserLogin && (
                 <>
