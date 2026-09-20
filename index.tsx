@@ -1,6 +1,7 @@
 import './index.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { ClerkProvider } from '@clerk/clerk-react';
 import App from './App';
 
 const ORINAI_HOSTS = ['www.orinai.org', 'orinai.org'];
@@ -63,9 +64,11 @@ const startApp = () => {
   }
 
   try {
+    const clerkKey = (import.meta as any)?.env?.VITE_CLERK_PUBLISHABLE_KEY || '';
+    const app = <App />;
     ReactDOM.createRoot(rootElement).render(
       <React.StrictMode>
-        <App />
+        {clerkKey ? <ClerkProvider publishableKey={clerkKey}>{app}</ClerkProvider> : app}
       </React.StrictMode>
     );
   } catch (err) {

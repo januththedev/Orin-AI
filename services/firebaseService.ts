@@ -68,44 +68,6 @@ class FirebaseService {
     } catch (_) {}
   }
 
-  async loginWithGoogle(): Promise<firebase.User | null> {
-    if (!this.auth) throw new Error("Authentication module not initialized.");
-    const provider = new firebase.auth.GoogleAuthProvider();
-    provider.addScope('email');
-    provider.addScope('profile');
-    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(ua);
-
-    // iOS: use SESSION (sessionStorage) — reliable on Safari. LOCAL uses indexedDB which ITP nukes.
-    try {
-      await this.auth.setPersistence(
-        isMobile ? firebase.auth.Auth.Persistence.SESSION : firebase.auth.Auth.Persistence.LOCAL
-      );
-    } catch {}
-
-    if (isMobile) {
-      await this.auth.signInWithRedirect(provider);
-      return null;
-    }
-
-    // Desktop: try popup first, fall back to redirect if blocked (e.g. Electron)
-    try {
-      const result = await this.auth.signInWithPopup(provider);
-      return result.user ?? null;
-    } catch (err: any) {
-      const code = err?.code || '';
-      if ([
-        'auth/popup-blocked','auth/popup-closed-by-user',
-        'auth/cancelled-popup-request','auth/web-storage-unsupported',
-        'auth/operation-not-supported-in-this-environment',
-      ].includes(code)) {
-        await this.auth.signInWithRedirect(provider);
-        return null;
-      }
-      throw err;
-    }
-  }
-
   async getRedirectResult(): Promise<{ credential: firebase.auth.UserCredential | null; error: string | null }> {
     if (!this.auth) return { credential: null, error: null };
     try {
