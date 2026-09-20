@@ -1,8 +1,8 @@
 /**
- * Shared Telegram webhook engine for both Orin bots (Orin AI chat bot +
- * Orin Code coding bot). Route files stay thin: they pass their token env,
- * secret env, system prompt, and chain tier — everything else (mention
- * gating, replies, chunking, model failover) lives here.
+ * Shared Telegram webhook engine for the single Orin bot (chat + code +
+ * PC remote ops). Route files stay thin: they pass token env, secret env,
+ * personas, and tiers — everything else (mention gating, replies, chunking,
+ * model failover) lives here.
  */
 import { route, chainFor } from './omni.js';
 
@@ -75,12 +75,16 @@ function mentioned(message, username) {
  * @param {object} opts
  * @param {string} opts.tokenEnv   env var holding the bot token
  * @param {string} opts.secretEnv  env var holding the webhook secret (optional)
- * @param {string} opts.system     system prompt (persona per bot)
- * @param {string} opts.tier       omni chain tier: 'balanced' | 'coding' | 'thinking'
+ * @param {string} opts.system     system prompt for everyday chat
+ * @param {string} opts.tier       omni chain tier for everyday chat
+ * @param {string} [opts.codeSystem] system prompt when the message looks like
+ *   a coding task (defaults to `system`)
+ * @param {string} [opts.codeTier] omni chain tier for coding tasks
+ *   (defaults to 'coding')
  * @param {string} opts.oopsName   display name used in the failure message
  * @param {boolean} [opts.linkBot] also handle /link pairing codes and
- *   pc:approve:/pc:deny: buttons (Orin Code bot only). Needs PC_LINK_SECRET
- *   plus ./pclink.js; failures here never break normal Q&A.
+ *   pc:approve:/pc:deny: buttons. Needs PC_LINK_SECRET plus ./pclink.js;
+ *   failures here never break normal Q&A.
  */
 export async function handleTelegramUpdate(req, res, opts) {
   if (req.method !== 'POST') {
@@ -137,8 +141,11 @@ export async function handleTelegramUpdate(req, res, opts) {
 
     let text = "I couldn't generate a response. Please try again.";
     try {
-      const r = await route(await chainFor(opts.tier), [
-        { role: 'system', content: opts.system },
+      const codeMode = isCodeLike(question);
+      const system = codeMode ? opts.codeSystem || opts.system : opts.system;
+      const tier = codeMode ? opts.codeTier || 'coding' : opts.tier;
+      const r = await route(await chainFor(tier), [
+        { role: 'system', content: system },
         ...(repliedText && repliedText !== question
           ? [{ role: 'user', content: `Context they replied to: ${repliedText.slice(0, 1500)}` }]
           : []),
@@ -186,6 +193,20 @@ export async function handleTelegramUpdate(req, res, opts) {
 
 /** Task-like opener verbs — keeps the Run offer off pure chit-chat. */
 const TASK_VERBS = /^(fix|change|update|add|create|build|refactor|rewrite|run|edit|delete|remove|rename|move|install|clean|deploy|commit|push|test|debug|migrate|convert|implement|write|generate|make|set up|setup|configure|please)\b/i;
+
+/**
+ * Code-intent sniffing for per-message tier routing: fenced code, stack
+ * traces, and code-task verbs paired with code nouns go to the coding
+ * chain; everything else stays on the chat chain.
+ */
+const CODE_NOUNS = /\b(code|coding|bug|error|traceback|exception|function|class|method|variable|api|script|server|program|compile|debug|refactor|python|javascript|typescript|rust|java|go|php|ruby|swift|kotlin|sql|html|css|docker|kubernetes|npm|pip|cargo|git|linux|regex|algorithm|database)\b/i;
+
+function isCodeLike(question) {
+  const q = String(question || '');
+  if (/```/.test(q)) return true;
+  const first = q.trim().split('\n')[0].slice(0, 160);
+  return TASK_VERBS.test(first) && CODE_NOUNS.test(q.slice(0, 600));
+}
 
 function looksLikeTask(question) {
   const first = String(question || '').trim().split('\n')[0].slice(0, 120);

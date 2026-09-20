@@ -76,7 +76,7 @@ async function handler(req, res) {
     const { approvalId, tool, title, detail } = body;
     if (!approvalId) throw httpError(400, 'approvalId required');
     await pushApproval(uid, binding.chatId, { approvalId, tool, title, detail });
-    const botToken = process.env.TELEGRAM_CODE_BOT_TOKEN || '';
+    const botToken = process.env.TELEGRAM_BOT_TOKEN || '';
     if (botToken) {
       await sendTelegram(botToken, 'sendMessage', {
         chat_id: binding.chatId,
@@ -109,7 +109,7 @@ async function handler(req, res) {
     if (!taskId) throw httpError(400, 'taskId required');
     const finished = await finishTask(String(taskId), uid, ok !== false, summary);
     if (!finished) throw httpError(404, 'Unknown task');
-    const botToken = process.env.TELEGRAM_CODE_BOT_TOKEN || '';
+    const botToken = process.env.TELEGRAM_BOT_TOKEN || '';
     if (botToken && finished.chatId) {
       const headline = finished.status === 'done' ? '✅ Done on your PC' : '❌ Failed on your PC';
       await sendTelegram(botToken, 'sendMessage', {
