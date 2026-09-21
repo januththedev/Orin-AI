@@ -1,17 +1,23 @@
 /**
- * /api/history — chat history, memory, profile, and usage on the Neon
- * users/{uid} row. Replaces the direct-Firestore data layer; every call
- * carries the caller's Orin session Bearer token.
+ * /api/me — the signed-in user's own state, one function.
+ * (Vercel Hobby caps deployments at 12 functions; session + history share
+ * this route instead of two.)
  *
  * GET  → { history: Conversation[] | null, memory: string }
- * POST { action: 'save', history, deletedIds? } — merges cloud+local
- *      { action: 'memory', memory }             — replaces memory (≤2000)
- *      { action: 'profile', name?, phone? }     — patches profile
- *      { action: 'usage-get' }                  — { text, images, videos }
- *      { action: 'usage-incr', type }           — increments a counter
+ * POST { action: 'sync', email?, name?, avatar? } → full UserAccount
+ *        (creates the Neon users/{uid} row on first login, applies
+ *        daily/30-day usage resets, logs the login event)
+ * POST { action: 'save', history, deletedIds? } — merge cloud+local history
+ * POST { action: 'memory', memory }             — replace memory (≤2000)
+ * POST { action: 'profile', name?, phone? }     — patch profile
+ * POST { action: 'usage-get' }                  — { text, images, videos }
+ * POST { action: 'usage-incr', type }           — increment a counter
+ *
+ * Every call carries the caller's Orin session Bearer token (HS256) or a
+ * Neon Auth JWT. No Firebase, no Clerk.
  */
 import { requireUser, httpError } from './_lib/auth.js';
-import { sdocGet, sdocSet, TS } from './_lib/store.js';
+import { sadd, sdocGet, sdocSet, TS } from './_lib/store.js';
 import { apiHandler } from './_lib/http.js';
 
 export const config = { maxDuration: 30 };
@@ -35,8 +41,15 @@ function normalizeHistory(raw) {
   return parsed;
 }
 
+function tierFor(plan) {
+  const p = String(plan || 'free').toLowerCase();
+  if (p === 'pro' || p === 'pro_yearly' || p === 'elite') return 'Pro (BYO-Google)';
+  if (p === 'basic' || p === 'basic_yearly') return 'Basic';
+  return 'Free';
+}
+
 async function handler(req, res) {
-  const { uid } = await requireUser(req);
+  const { uid, email: tokenEmail } = await requireUser(req);
 
   // ── GET: history + memory ────────────────────────────────────────────────
   if (req.method === 'GET') {
@@ -50,6 +63,88 @@ async function handler(req, res) {
 
   if (req.method !== 'POST') throw httpError(405, 'GET/POST only');
   const { action } = req.body || {};
+
+  // ── SYNC: resolve session → UserAccount ──────────────────────────────────
+  if (action === 'sync') {
+    const body = req.body || {};
+    const email = String(body.email || tokenEmail || '');
+    const name = String(body.name || '');
+    const avatar = body.avatar != null ? String(body.avatar) : null;
+
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      await sadd('login_events', { uid, email: email || null, loginAt: TS(), date: today });
+    } catch {}
+
+    const snap = await sdocGet('users', uid);
+    let userData;
+    if (!snap.exists) {
+      userData = {
+        ...(email ? { email } : {}),
+        name: name || (email ? email.split('@')[0] : 'Orin User'),
+        avatar: avatar || null,
+        plan: 'free',
+        role: 'visitor',
+        approved: false,
+        subscriptionStatus: 'active',
+        tokenVersion: 0,
+        createdAt: TS(),
+        lastUpdated: TS(),
+        usage: { text: 0, images: 0, videos: 0, mediaWindowStart: Date.now() },
+        memory: 'User is new to Orin AI.',
+        lastReset: Date.now(),
+      };
+      await sdocSet('users', uid, userData);
+    } else {
+      userData = snap.data() || {};
+      const updates = {};
+      if (avatar && userData.avatar !== avatar) updates.avatar = avatar;
+      if (email && !userData.email) updates.email = email;
+      if (name && !userData.name) updates.name = name;
+
+      const now = Date.now();
+      const usage = userData.usage ?? { text: 0, images: 0, videos: 0 };
+      let lastReset = userData.lastReset || 0;
+      let mediaWindowStart = usage.mediaWindowStart || lastReset || now;
+      let changed = false;
+      if (!lastReset || now - lastReset > DAY_MS) {
+        usage.text = 0;
+        lastReset = now;
+        changed = true;
+      }
+      if (!mediaWindowStart || now - mediaWindowStart > THIRTY_DAYS_MS) {
+        usage.images = 0;
+        usage.videos = 0;
+        mediaWindowStart = now;
+        changed = true;
+      }
+      if (changed) {
+        usage.mediaWindowStart = mediaWindowStart;
+        updates.usage = usage;
+        updates.lastReset = lastReset;
+      }
+      if (Object.keys(updates).length > 0) {
+        updates.lastUpdated = TS();
+        await sdocSet('users', uid, updates, true);
+        userData = { ...userData, ...updates };
+      }
+    }
+
+    const plan = userData.plan || 'free';
+    return res.status(200).json({
+      id: uid,
+      name: userData.name || (email ? email.split('@')[0] : 'Orin User'),
+      email: userData.email || email || '',
+      phone: userData.phone || undefined,
+      avatar: userData.avatar ?? null,
+      tier: tierFor(plan),
+      plan,
+      role: userData.role || 'visitor',
+      approved: userData.approved || false,
+      dailyUsage: userData.usage || { text: 0, images: 0, videos: 0 },
+      ...(userData.theme ? { theme: userData.theme } : {}),
+    });
+  }
 
   // ── SAVE: merge cloud + local, persist ───────────────────────────────────
   if (action === 'save') {

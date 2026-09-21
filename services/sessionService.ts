@@ -173,7 +173,7 @@ class SessionService {
    */
   async signInWithSession(sessionToken: string): Promise<SessionUser | null> {
     if (!sessionToken) throw new Error('Sign-in failed. Try again.');
-    const res = await fetch('/api/auth/session', {
+    const res = await fetch('/api/me', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
       body: JSON.stringify({ action: 'sync' }),
@@ -188,7 +188,7 @@ class SessionService {
     const token = readToken();
     if (!token) throw new Error('Not signed in');
     const profile = readProfile();
-    const res = await fetch('/api/auth/session', {
+    const res = await fetch('/api/me', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -207,7 +207,7 @@ class SessionService {
 
   private async historyApi(action: string, body: Record<string, unknown> = {}): Promise<any> {
     const token = readToken();
-    const res = await fetch('/api/history', {
+    const res = await fetch('/api/me', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -222,7 +222,7 @@ class SessionService {
 
   private async historyGet(): Promise<{ history: any[] | null; memory: string }> {
     const token = readToken();
-    const res = await fetch('/api/history', {
+    const res = await fetch('/api/me', {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     });
     const data = await res.json().catch(() => ({}));
