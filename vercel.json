@@ -1,19 +1,5 @@
 {
-  "crons": [
-    {
-      "path": "/api/maintenance",
-      "schedule": "0 3 * * *"
-    }
-  ],
   "rewrites": [
-    {
-      "source": "/api/task-router/:path*",
-      "destination": "/api/task-router"
-    },
-    {
-      "source": "/api/executor/:path*",
-      "destination": "/api/executor"
-    },
     {
       "source": "/((?!api/|sitemap.xml|robots.txt|favicon.svg|firebase-messaging-sw.js|sw.js|manifest.json|assets|privacy\\.html|releases\\.html).*)",
       "destination": "/index.html"

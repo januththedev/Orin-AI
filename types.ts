@@ -41,6 +41,10 @@ export interface ChatMessage {
   videoUrl?: string;
   fileName?: string;
   reasoning_details?: any;
+  /** Reasoning trace from thinking mode — shown collapsed, expands on click. */
+  thinking?: string;
+  /** Model id that answered (from /api/models catalog). */
+  model?: string;
 }
 
 export interface Conversation {

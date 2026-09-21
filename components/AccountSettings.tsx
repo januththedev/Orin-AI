@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { firebaseService } from '../services/firebaseService';
+import ClerkSignIn from './ClerkSignIn';
 import { UserAccount, Language } from '../types';
 import { translations } from '../translations';
 
@@ -159,6 +160,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
   };
 
   const handleLogout = async () => {
+    try { await (window as any).Clerk?.signOut?.(); } catch {}
     await firebaseService.logout();
     window.location.hash = 'chat';
   };
@@ -227,6 +229,11 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
                     : resetToken ? 'Set new password' : 'Find my account'}
                 </button>
               </form>
+
+              <ClerkSignIn
+                firebaseSignedIn={false}
+                clerkEnabled={Boolean((import.meta as any)?.env?.VITE_CLERK_PUBLISHABLE_KEY)}
+              />
 
               {canBrowserLogin && (
                 <>

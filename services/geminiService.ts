@@ -168,20 +168,6 @@ export class GeminiService {
     }
   }
 
-  /** Chat model fallback chain by plan. Matches pricing: Free=2.0-flash, Basic=2.5-flash, Pro=3.1-pro. */
-  private getModelsToTry(user: UserAccount | null): string[] {
-    const plan = user?.plan?.toLowerCase() ?? 'free';
-
-    if (plan === 'pro' || plan === 'pro_yearly') {
-      return ['gemini-2.5-flash', 'gemini-2.0-flash']; // 2.5-pro reserved for long-context only
-    }
-    if (plan === 'basic' || plan === 'basic_yearly') {
-      return ['gemini-2.5-flash', 'gemini-2.0-flash'];
-    }
-    // Free: gemini-2.0-flash — fast, cheap, reliable
-    return ['gemini-2.0-flash'];
-  }
-
   /** Context window size by plan (last N messages). Matches pricing: Free=5, Basic=10, Pro=20. */
   private getContextMessageLimit(user: UserAccount | null): number {
     const plan = user?.plan?.toLowerCase() ?? 'free';
@@ -200,9 +186,11 @@ export class GeminiService {
     history?: ChatMessage[];
     signal?: AbortSignal;
     isPrivate?: boolean;
+    /** Explicit free-model id from /api/models (allowlisted server-side). */
+    model?: string;
     /** Internal/system calls (e.g. release summaries) should not consume user quota. */
     internal?: boolean;
-  } = {}): Promise<{ text: string; links: GroundingLink[]; reasoning_details?: any }> {
+  } = {}): Promise<{ text: string; links: GroundingLink[]; reasoning_details?: any; thinking?: string; model?: string }> {
     // ── Plan / guest limit check ──────────────────────────────────────────
     if (this.currentUser) {
       const limitReached = await firebaseService.checkLimit(this.currentUser.id, 'text');
@@ -242,6 +230,8 @@ export class GeminiService {
           tone:        (options as any).tone || 'neutral',
           plan,
           useThinking: !!options.useThinking,
+          thinking:    !!options.useThinking,
+          model:       options.model || null,
           descriptive: !!options.descriptive,
           grounding:   options.grounding || null,
           isPrivate:   !!options.isPrivate,
@@ -282,6 +272,8 @@ export class GeminiService {
         text:              data.text || "I couldn't generate a response. Please try again.",
         links:             data.links || [],
         reasoning_details: data.reasoning_details,
+        thinking:          data.thinking || '',
+        model:             data.model || '',
       };
     } catch (e: unknown) {
       if (e instanceof Error && e.name === 'AbortError') throw e;
@@ -635,20 +627,6 @@ You are processing a live video feed. CRITICAL RULES:
    */
   // ─── Long Context Chat ─────────────────────────────────────────────────────
   /** Long context: Pro uses gemini-2.5-flash with 1M token window. Pass full history. */
-  private getLongContextModel(user: UserAccount | null): string {
-    const plan = user?.plan?.toLowerCase() ?? 'free';
-    if (plan === 'pro' || plan === 'pro_yearly') return 'gemini-2.5-pro'; // 1M ctx
-    if (plan === 'basic' || plan === 'basic_yearly') return 'gemini-2.5-flash';          // 1M ctx
-    // Free: 2 long-context uses per day, tracked in localStorage
-    const today = new Date().toDateString();
-    const key = `orin_long_ctx_${today}`;
-    const used = parseInt(typeof localStorage !== 'undefined' ? (localStorage.getItem(key) || '0') : '0', 10);
-    if (used < 2) {
-      if (typeof localStorage !== 'undefined') localStorage.setItem(key, String(used + 1));
-      return 'gemini-2.5-flash'; // 1M ctx - free users get 2 uses/day
-    }
-    return 'gemini-2.0-flash'; // 128K ctx fallback
-  }
 
   // ─── Code Execution ────────────────────────────────────────────────────────
   /** Run code via Gemini's built-in code execution tool. Returns output + generated code. */

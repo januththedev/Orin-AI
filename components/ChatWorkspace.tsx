@@ -209,6 +209,9 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
   const [aspect, setAspect] = useState<AspectRatio>('1:1');
   const [chatError, setChatError] = useState<string | null>(null);
   const [artifact, setArtifact] = useState<Artifact | null>(null);
+  const [modelCatalog, setModelCatalog] = useState<Array<{ id: string; label: string }>>([]);
+  const [selectedModel, setSelectedModel] = useState('');
+  const [openThinking, setOpenThinking] = useState<Record<string, boolean>>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -226,6 +229,19 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
     setPrivateMessages([]);
     setChatError(null);
   }, [activeConvId]);
+
+  // Free-model catalog for the picker (coding tier default = best free coder).
+  useEffect(() => {
+    fetch('/api/models')
+      .then((r) => r.json())
+      .then((data) => {
+        const coding = data?.tiers?.coding || [];
+        setModelCatalog(coding);
+        if (!selectedModel && data?.defaults?.coding) setSelectedModel(data.defaults.coding);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Landing-page handoff: prefill the composer with the seeded prompt once.
   useEffect(() => {
@@ -288,6 +304,7 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
           fileData: selectedFile || undefined,
           useThinking: thinkingMode,
           descriptive: descriptiveMode,
+          model: selectedModel || undefined,
           history: isPrivate ? privateMessages : messages,
           signal: controller.signal,
           isPrivate,
@@ -299,6 +316,8 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
           timestamp: new Date(),
           type: 'text',
           links: res.links || [],
+          thinking: res.thinking || '',
+          model: res.model || '',
         };
         if (isPrivate) setPrivateMessages(prev => [...prev, botMsg]);
         else {
@@ -344,6 +363,18 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
           {isPrivate && <i className="fa-solid fa-lock text-[10px] text-cyan-500" aria-hidden />}
         </div>
         <div className="flex items-center gap-1.5">
+          {modelCatalog.length > 0 && (
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              title="Model (free tier)"
+              className="px-2 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border border-stone-300/60 dark:border-white/10 text-stone-500 dark:text-stone-300 bg-transparent hover:text-stone-700 dark:hover:text-stone-100 transition-colors max-w-[150px]"
+            >
+              {modelCatalog.map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </select>
+          )}
           <button
             onClick={() => onReasoningModeChange({ thinking: !thinkingMode })}
             title="Deeper reasoning"
@@ -428,6 +459,22 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
                       : 'bg-white dark:bg-stone-900 text-stone-800 dark:text-stone-200 border-black/[0.05] dark:border-white/[0.06] rounded-bl-md shadow-sm'
                   }`}>
                     <MessageContent content={msg.content} isUser={msg.role === 'user'} />
+                    {msg.role === 'assistant' && !!msg.thinking && (
+                      <div className="mt-2">
+                        <button
+                          onClick={() => setOpenThinking((prev) => ({ ...prev, [msg.id]: !prev[msg.id] }))}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 transition-colors"
+                        >
+                          <i className={`fa-solid ${openThinking[msg.id] ? 'fa-chevron-up' : 'fa-chevron-down'} text-[8px]`} aria-hidden />
+                          Thinking
+                        </button>
+                        {openThinking[msg.id] && (
+                          <pre className="mt-1.5 max-h-56 overflow-auto whitespace-pre-wrap text-[11px] leading-relaxed text-stone-500 dark:text-stone-400 border-l-2 border-amber-500/40 pl-2.5">
+                            {msg.thinking}
+                          </pre>
+                        )}
+                      </div>
+                    )}
                     {msg.role === 'assistant' && (() => {
                       const arts = extractArtifacts(msg.content);
                       if (arts.length === 0) return null;

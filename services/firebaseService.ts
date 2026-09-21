@@ -11,15 +11,16 @@ interface UsagePlanLimits {
   videosPer30Days: number | null;
 }
 
-// Configuration
+// Configuration — every field overridable via env (see .env.example);
+// hardcoded values are the orin-ai-f6798 project fallback.
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY || "AIzaSyB5rY4e-_GOkkl4qwDZuvHqwq0_IP9mFmA",
-  authDomain: "orin-ai-f6798.firebaseapp.com",
-  projectId: "orin-ai-f6798",
-  storageBucket: "orin-ai-f6798.firebasestorage.app",
-  messagingSenderId: "259788442094",
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN || "orin-ai-f6798.firebaseapp.com",
+  projectId: process.env.FIREBASE_PROJECT_ID || "orin-ai-f6798",
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "orin-ai-f6798.firebasestorage.app",
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "259788442094",
   appId: process.env.FIREBASE_APP_ID || "1:259788442094:web:4d946378ca1b4d7349a6ff",
-  measurementId: "G-57DHESH4ZJ"
+  measurementId: process.env.FIREBASE_MEASUREMENT_ID || "G-57DHESH4ZJ"
 };
 
 declare global {
@@ -65,44 +66,6 @@ class FirebaseService {
         } catch (_) {}
       }
     } catch (_) {}
-  }
-
-  async loginWithGoogle(): Promise<firebase.User | null> {
-    if (!this.auth) throw new Error("Authentication module not initialized.");
-    const provider = new firebase.auth.GoogleAuthProvider();
-    provider.addScope('email');
-    provider.addScope('profile');
-    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(ua);
-
-    // iOS: use SESSION (sessionStorage) — reliable on Safari. LOCAL uses indexedDB which ITP nukes.
-    try {
-      await this.auth.setPersistence(
-        isMobile ? firebase.auth.Auth.Persistence.SESSION : firebase.auth.Auth.Persistence.LOCAL
-      );
-    } catch {}
-
-    if (isMobile) {
-      await this.auth.signInWithRedirect(provider);
-      return null;
-    }
-
-    // Desktop: try popup first, fall back to redirect if blocked (e.g. Electron)
-    try {
-      const result = await this.auth.signInWithPopup(provider);
-      return result.user ?? null;
-    } catch (err: any) {
-      const code = err?.code || '';
-      if ([
-        'auth/popup-blocked','auth/popup-closed-by-user',
-        'auth/cancelled-popup-request','auth/web-storage-unsupported',
-        'auth/operation-not-supported-in-this-environment',
-      ].includes(code)) {
-        await this.auth.signInWithRedirect(provider);
-        return null;
-      }
-      throw err;
-    }
   }
 
   async getRedirectResult(): Promise<{ credential: firebase.auth.UserCredential | null; error: string | null }> {
