@@ -47,11 +47,11 @@ const IMAGE_ASPECTS: Array<{ id: AspectRatio; label: string }> = [
   { id: '4:3', label: 'Classic' },
 ];
 
-const STARTERS = [
-  'Explain black holes like I am ten',
-  'Write a short poem about Kandy in the rain',
-  'Ideas for a birthday caption in Sinhala',
-  'Help me draft a job application email',
+const STARTERS: Array<{ icon: string; tint: string; text: string }> = [
+  { icon: 'fa-atom', tint: 'text-violet-500', text: 'Explain black holes like I am ten' },
+  { icon: 'fa-cloud-rain', tint: 'text-sky-500', text: 'Write a short poem about Kandy in the rain' },
+  { icon: 'fa-cake-candles', tint: 'text-pink-500', text: 'Ideas for a birthday caption in Sinhala' },
+  { icon: 'fa-briefcase', tint: 'text-amber-500', text: 'Help me draft a job application email' },
 ];
 
 // ─── Message renderer: markdown-lite + inline URLs as pill buttons ──────────
@@ -209,14 +209,6 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
   const [aspect, setAspect] = useState<AspectRatio>('1:1');
   const [chatError, setChatError] = useState<string | null>(null);
   const [artifact, setArtifact] = useState<Artifact | null>(null);
-  const [modelTiers, setModelTiers] = useState<Record<string, Array<{ id: string; label: string }>>>({});
-  const [modelDefaults, setModelDefaults] = useState<Record<string, string>>({});
-  const [selectedModel, setSelectedModel] = useState(() => {
-    try { return localStorage.getItem('orin_model') || ''; } catch { return ''; }
-  });
-  const [modelOpen, setModelOpen] = useState(false);
-  const manualPickRef = useRef(false);
-  const modelWrapRef = useRef<HTMLDivElement>(null);
   const [openThinking, setOpenThinking] = useState<Record<string, boolean>>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -236,59 +228,9 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
     setChatError(null);
   }, [activeConvId]);
 
-  // Free-model catalog: live tiers from /api/models. Default follows the
-  // mode (thinking → thinking tier, else balanced); a manual pick sticks
-  // (persisted) and disables auto-follow.
-  useEffect(() => {
-    fetch('/api/models')
-      .then((r) => r.json())
-      .then((data) => {
-        const tiers = data?.tiers || {};
-        const defaults = data?.defaults || {};
-        setModelTiers(tiers);
-        setModelDefaults(defaults);
-        const allIds = new Set(Object.values(tiers).flat().map((m: any) => m.id));
-        const stored = (() => { try { return localStorage.getItem('orin_model') || ''; } catch { return ''; } })();
-        if (stored && allIds.has(stored)) {
-          manualPickRef.current = true;
-          setSelectedModel(stored);
-        } else {
-          const fallback = defaults.balanced || defaults.coding || defaults.thinking || '';
-          if (fallback) setSelectedModel(fallback);
-        }
-      })
-      .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Mode-follow: Deep on → thinking default, off → balanced default (unless picked).
-  useEffect(() => {
-    if (manualPickRef.current) return;
-    const next = thinkingMode
-      ? (modelDefaults.thinking || modelDefaults.balanced)
-      : (modelDefaults.balanced || modelDefaults.coding);
-    if (next) setSelectedModel(next);
-  }, [thinkingMode, modelDefaults]);
-
-  // Close the model dropdown on outside tap.
-  useEffect(() => {
-    if (!modelOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (!modelWrapRef.current?.contains(e.target as Node)) setModelOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [modelOpen]);
-
-  const pickModel = (id: string) => {
-    manualPickRef.current = true;
-    setSelectedModel(id);
-    try { localStorage.setItem('orin_model', id); } catch {}
-    setModelOpen(false);
-  };
-
-  const flatModels = Object.values(modelTiers).flat();
-  const selectedLabel = flatModels.find((m) => m.id === selectedModel)?.label || 'Select model';
+  // Model choice is fully automatic now (no picker): Deep on → thinking
+  // chain (max intelligence), off → balanced chain (speed + smarts).
+  // The backend also auto-attaches live web search on freshness intent.
 
   // Landing-page handoff: prefill the composer with the seeded prompt once.
   useEffect(() => {
@@ -346,12 +288,11 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
           }
         }
       } else {
-        // ── Text chat ──────────────────────────────────────────────────────
+        // ── Text chat (model auto-picked server-side by mode) ────────────────
         const res = await geminiService.chat(text || 'Describe this.', {
           fileData: selectedFile || undefined,
           useThinking: thinkingMode,
           descriptive: descriptiveMode,
-          model: selectedModel || undefined,
           history: isPrivate ? privateMessages : messages,
           signal: controller.signal,
           isPrivate,
@@ -365,6 +306,7 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
           links: res.links || [],
           thinking: res.thinking || '',
           model: res.model || '',
+          searched: res.searched || false,
         };
         if (isPrivate) setPrivateMessages(prev => [...prev, botMsg]);
         else {
@@ -389,7 +331,7 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
       setStepLabel('');
       setSelectedFile(null);
     }
-  }, [input, selectedFile, isTyping, imageMode, aspect, isPrivate, privateMessages, messages, thinkingMode, descriptiveMode, selectedModel, lang, onUpdateTitle, setMessages]);
+  }, [input, selectedFile, isTyping, imageMode, aspect, isPrivate, privateMessages, messages, thinkingMode, descriptiveMode, lang, onUpdateTitle, setMessages]);
 
   const togglePrivate = () => {
     setIsPrivate(prev => !prev);
@@ -404,7 +346,8 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
           <button onClick={onOpenSidebar} className="md:hidden w-9 h-9 rounded-xl flex items-center justify-center text-stone-500 hover:bg-black/5 dark:hover:bg-white/5" aria-label="Open menu">
             <i className="fa-solid fa-bars" />
           </button>
-          <h2 className="text-xs font-black uppercase tracking-[0.18em] text-stone-800 dark:text-stone-100 truncate">
+          <h2 className="text-xs font-black uppercase tracking-[0.18em] text-stone-800 dark:text-stone-100 truncate flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-br from-cyan-400 to-sky-500 shadow-sm shadow-cyan-500/50" aria-hidden />
             {isPrivate ? 'Private chat' : 'Orin AI'}
           </h2>
           {isPrivate && <i className="fa-solid fa-lock text-[10px] text-cyan-500" aria-hidden />}
@@ -431,24 +374,25 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
           {currentMessages.length === 0 ? (
             <div className="min-h-[55vh] flex flex-col items-center justify-center text-center px-4">
               <div className="relative mb-6">
-                <div className="absolute inset-0 bg-cyan-500/25 blur-3xl rounded-full scale-150" aria-hidden />
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/40 via-sky-500/25 to-violet-500/30 blur-3xl rounded-full scale-150" aria-hidden />
                 <img src="/favicon.svg" alt="" className="relative w-16 h-16 drop-shadow-xl" />
               </div>
-              <h1 className="text-2xl md:text-3xl font-black tracking-tight text-stone-900 dark:text-white">
+              <h1 className="text-2xl md:text-3xl font-black tracking-tight bg-gradient-to-br from-stone-900 via-stone-800 to-stone-500 dark:from-white dark:via-stone-100 dark:to-stone-400 bg-clip-text text-transparent">
                 {isPrivate ? 'Private chat' : 'How can I help?'}
               </h1>
               <p className="mt-2 text-sm text-stone-500 dark:text-stone-400 max-w-sm">
-                Ask anything, or switch on <span className="font-bold text-cyan-600 dark:text-cyan-300">Image</span> below to create pictures.
+                Ask anything — fresh answers search the web automatically. Switch on <span className="font-bold text-cyan-600 dark:text-cyan-300">Image</span> below to create pictures.
               </p>
               {!isPrivate && (
                 <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
                   {STARTERS.map(s => (
                     <button
-                      key={s}
-                      onClick={() => { setInput(s); inputRef.current?.focus(); }}
-                      className="text-left px-4 py-3 rounded-2xl bg-white dark:bg-stone-900 border border-black/[0.05] dark:border-white/[0.06] text-xs font-semibold text-stone-600 dark:text-stone-300 hover:border-cyan-500/40 hover:text-stone-900 dark:hover:text-white transition-colors shadow-sm"
+                      key={s.text}
+                      onClick={() => { setInput(s.text); inputRef.current?.focus(); }}
+                      className="flex items-center gap-3 text-left px-4 py-3 rounded-2xl bg-white dark:bg-stone-900 border border-black/[0.05] dark:border-white/[0.06] text-xs font-semibold text-stone-600 dark:text-stone-300 hover:border-cyan-500/40 hover:text-stone-900 dark:hover:text-white hover:shadow-md hover:-translate-y-px transition-all shadow-sm"
                     >
-                      {s}
+                      <i className={`fa-solid ${s.icon} ${s.tint} text-sm shrink-0`} aria-hidden />
+                      {s.text}
                     </button>
                   ))}
                 </div>
@@ -470,21 +414,28 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
                       : 'bg-white dark:bg-stone-900 text-stone-800 dark:text-stone-200 border-black/[0.05] dark:border-white/[0.06] rounded-bl-md shadow-sm'
                   }`}>
                     <MessageContent content={msg.content} isUser={msg.role === 'user'} />
-                    {msg.role === 'assistant' && !!msg.thinking && (
-                      <div className="mt-2">
-                        <button
-                          onClick={() => setOpenThinking((prev) => ({ ...prev, [msg.id]: !prev[msg.id] }))}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 transition-colors"
-                        >
-                          <i className={`fa-solid ${openThinking[msg.id] ? 'fa-chevron-up' : 'fa-chevron-down'} text-[8px]`} aria-hidden />
-                          Thinking
-                        </button>
-                        {openThinking[msg.id] && (
-                          <pre className="mt-1.5 max-h-56 overflow-auto whitespace-pre-wrap text-[11px] leading-relaxed text-stone-500 dark:text-stone-400 border-l-2 border-amber-500/40 pl-2.5">
-                            {msg.thinking}
-                          </pre>
+                    {msg.role === 'assistant' && (!!msg.thinking || msg.searched) && (
+                      <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                        {msg.searched && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-sky-500/40 text-sky-700 dark:text-sky-300 bg-sky-500/10">
+                            <i className="fa-solid fa-globe text-[8px]" aria-hidden /> Searched the web
+                          </span>
+                        )}
+                        {!!msg.thinking && (
+                          <button
+                            onClick={() => setOpenThinking((prev) => ({ ...prev, [msg.id]: !prev[msg.id] }))}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 transition-colors"
+                          >
+                            <i className={`fa-solid ${openThinking[msg.id] ? 'fa-chevron-up' : 'fa-chevron-down'} text-[8px]`} aria-hidden />
+                            Thinking
+                          </button>
                         )}
                       </div>
+                    )}
+                    {msg.role === 'assistant' && !!msg.thinking && openThinking[msg.id] && (
+                      <pre className="mt-1.5 max-h-56 overflow-auto whitespace-pre-wrap text-[11px] leading-relaxed text-stone-500 dark:text-stone-400 border-l-2 border-amber-500/40 pl-2.5">
+                        {msg.thinking}
+                      </pre>
                     )}
                     {msg.role === 'assistant' && (() => {
                       const arts = extractArtifacts(msg.content);
@@ -562,81 +513,39 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
             </div>
           )}
 
-          <div className="rounded-[26px] bg-white dark:bg-stone-900 border border-black/[0.07] dark:border-white/[0.08] shadow-xl shadow-black/[0.04] dark:shadow-black/40 p-2 flex flex-col gap-1">
-            {/* Model + mode pills — inline in the search bar, no modal */}
-            {!imageMode && flatModels.length > 0 && (
+          <div className="rounded-[26px] bg-white/90 dark:bg-stone-900/90 backdrop-blur border border-black/[0.07] dark:border-white/[0.08] shadow-xl shadow-black/[0.04] dark:shadow-black/40 p-2 flex flex-col gap-1 transition-all focus-within:ring-2 focus-within:ring-cyan-500/40 focus-within:border-cyan-500/50 focus-within:shadow-cyan-500/10">
+            {/* Mode pills — inline in the search bar */}
+            {!imageMode && (
               <div className="flex items-center gap-1.5 flex-wrap px-1 pt-1">
-                <div ref={modelWrapRef} className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setModelOpen((v) => !v)}
-                    aria-haspopup="listbox"
-                    aria-expanded={modelOpen}
-                    title="Choose model (free tier)"
-                    className={`inline-flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${
-                      modelOpen
-                        ? 'border-cyan-500 text-stone-900 dark:text-white ring-2 ring-cyan-500/40'
-                        : 'border-stone-300/60 dark:border-white/10 text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white'
-                    }`}
-                  >
-                    <span className="truncate max-w-[180px]">{selectedLabel}</span>
-                    <i className={`fa-solid fa-chevron-down text-[9px] transition-transform ${modelOpen ? 'rotate-180' : ''}`} aria-hidden />
-                  </button>
-                  {modelOpen && (
-                    <div role="listbox" className="absolute top-full left-0 mt-1.5 min-w-[230px] max-h-72 overflow-auto custom-scrollbar rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-stone-900 shadow-2xl z-30 py-1">
-                      {(['thinking', 'balanced', 'coding'] as const).map((tier) => (
-                        (modelTiers[tier] || []).length > 0 && (
-                          <div key={tier}>
-                            <p className="px-3 pt-2 pb-1 text-[9px] font-black uppercase tracking-widest text-stone-400">{tier}</p>
-                            {(modelTiers[tier] || []).map((m) => (
-                              <button
-                                key={m.id}
-                                type="button"
-                                role="option"
-                                aria-selected={m.id === selectedModel}
-                                onClick={() => pickModel(m.id)}
-                                className={`w-full text-left px-3 py-2 text-[11px] font-black uppercase tracking-widest transition-colors ${
-                                  m.id === selectedModel
-                                    ? 'bg-stone-500/30 dark:bg-white/20 text-stone-900 dark:text-white'
-                                    : 'text-stone-600 dark:text-stone-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
-                                }`}
-                              >
-                                {m.label}
-                                {modelDefaults[tier] === m.id && <span className="ml-1.5 text-cyan-600 dark:text-cyan-300">· auto</span>}
-                              </button>
-                            ))}
-                          </div>
-                        )
-                      ))}
-                    </div>
-                  )}
-                </div>
                 <button
                   type="button"
                   onClick={() => onReasoningModeChange({ thinking: !thinkingMode })}
-                  title="Deeper reasoning"
+                  title="Deeper reasoning (smartest free model)"
                   aria-pressed={thinkingMode}
-                  className={`px-2.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${
                     thinkingMode
-                      ? 'bg-cyan-500 text-stone-950 border-cyan-500'
-                      : 'border-stone-300/60 dark:border-white/10 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200'
+                      ? 'bg-gradient-to-r from-cyan-500 to-sky-500 text-stone-950 border-transparent shadow-md shadow-cyan-500/30'
+                      : 'border-stone-300/60 dark:border-white/10 text-stone-400 hover:text-stone-700 dark:hover:text-stone-100 hover:border-cyan-500/40'
                   }`}
                 >
-                  Deep
+                  <i className="fa-solid fa-brain text-[10px]" aria-hidden /> Deep
                 </button>
                 <button
                   type="button"
                   onClick={() => onReasoningModeChange({ descriptive: !descriptiveMode })}
                   title="More detailed answers"
                   aria-pressed={descriptiveMode}
-                  className={`px-2.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${
                     descriptiveMode
-                      ? 'bg-cyan-500 text-stone-950 border-cyan-500'
-                      : 'border-stone-300/60 dark:border-white/10 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200'
+                      ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white border-transparent shadow-md shadow-violet-500/30'
+                      : 'border-stone-300/60 dark:border-white/10 text-stone-400 hover:text-stone-700 dark:hover:text-stone-100 hover:border-violet-500/40'
                   }`}
                 >
-                  Detailed
+                  <i className="fa-solid fa-align-left text-[10px]" aria-hidden /> Detailed
                 </button>
+                <span className="hidden sm:inline-flex items-center gap-1 px-1 text-[9px] font-bold uppercase tracking-widest text-stone-400/80">
+                  <i className="fa-solid fa-globe text-[9px]" aria-hidden /> auto web search
+                </span>
               </div>
             )}
             <textarea

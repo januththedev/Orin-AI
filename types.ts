@@ -45,6 +45,8 @@ export interface ChatMessage {
   thinking?: string;
   /** Model id that answered (from /api/models catalog). */
   model?: string;
+  /** True when the reply used live web search (OpenRouter web plugin). */
+  searched?: boolean;
 }
 
 export interface Conversation {

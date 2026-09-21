@@ -127,7 +127,23 @@ RULES:
    block is the deliverable.`;
 }
 
-// getModels retired — free-model chains are picked live in api/_lib/omni.js chainFor().
+/**
+ * Freshness-intent detection: does this prompt need live web results?
+ * Explicit `search:` prefix forces it; otherwise keyword intent
+ * (news/recency/prices/scores/dates). The OpenRouter web plugin
+ * ($4 / 1k results, owner keys) is attached only on intent — not on
+ * every message — and citations flow back as `links`.
+ */
+const SEARCH_PREFIX = /^search\s*:\s*/i;
+const SEARCH_INTENT =
+  /\b(latest|newest|breaking|update[sd]?|news|today'?s|tonight|right now|current(ly)?|live|this week|this month|this year|2025|2026|price|stock|score|scores|who won|winner|election|weather|forecast|launch|release date|announc\w+|rumor|leak|vs\b.*(fight|match|game))\b/i;
+
+function searchIntent(prompt) {
+  const text = String(prompt || '');
+  if (SEARCH_PREFIX.test(text)) return { forced: true, clean: text.replace(SEARCH_PREFIX, '') };
+  if (SEARCH_INTENT.test(text)) return { forced: false, clean: text };
+  return null;
+}
 
 function getContextLimit(plan) {
   const p = (plan || 'free').toLowerCase();
@@ -270,6 +286,17 @@ async function handler(req, res) {
     messages.push({ role: 'user', content: currentContent });
 
     const wantThinking = Boolean(thinkingFlag ?? useThinking);
+    // Web search: intent-detected (or forced with `search:`). Citations come
+    // back as annotations → links, rendered under the answer.
+    const search = searchIntent(typeof currentContent === 'string' ? currentContent : prompt);
+    if (search && typeof currentContent === 'string') currentContent = search.clean;
+    else if (search && Array.isArray(currentContent) && currentContent[0]?.text) {
+      currentContent[0].text = String(currentContent[0].text).replace(SEARCH_PREFIX, '');
+    }
+    const webExtra = search ? { plugins: [{ id: 'web', max_results: 5 }] } : {};
+    if (search) {
+      systemInstruction += `\n\nLIVE WEB SEARCH IS ON for this reply: web results are appended to the conversation. Use them for anything time-sensitive, cite key facts inline, and prefer them over training data for current events.`;
+    }
     // Free-only routing: explicit allowlisted model wins, else the thinking
     // chain (max intelligence) or the balanced chain (speed + smarts).
     const { chain, pinned } = await resolveChain({ model: requestedModel, thinking: wantThinking });
@@ -278,6 +305,7 @@ async function handler(req, res) {
     try {
       result = await route(chain, messages, {
         wantThinking,
+        extra: webExtra,
         onAttempt: ({ model, keyLast4, ok }) =>
           console.log(`[api/chat] omni ${ok ? 'ok' : 'fail'} model=${model} key=…${keyLast4}`),
       });
@@ -291,7 +319,8 @@ async function handler(req, res) {
       thinking: result.thinking || '',
       model: result.model,
       pinned: pinned || null,
-      links: [],
+      searched: Boolean(search),
+      links: result.links || [],
       reasoning_details: [],
     });
   } catch (err) {

@@ -190,7 +190,7 @@ export class GeminiService {
     model?: string;
     /** Internal/system calls (e.g. release summaries) should not consume user quota. */
     internal?: boolean;
-  } = {}): Promise<{ text: string; links: GroundingLink[]; reasoning_details?: any; thinking?: string; model?: string }> {
+  } = {}): Promise<{ text: string; links: GroundingLink[]; reasoning_details?: any; thinking?: string; model?: string; searched?: boolean }> {
     // ── Plan / guest limit check ──────────────────────────────────────────
     if (this.currentUser) {
       const limitReached = await sessionService.checkLimit(this.currentUser.id, 'text');
@@ -274,6 +274,7 @@ export class GeminiService {
         reasoning_details: data.reasoning_details,
         thinking:          data.thinking || '',
         model:             data.model || '',
+        searched:          !!data.searched,
       };
     } catch (e: unknown) {
       if (e instanceof Error && e.name === 'AbortError') throw e;
