@@ -209,8 +209,14 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
   const [aspect, setAspect] = useState<AspectRatio>('1:1');
   const [chatError, setChatError] = useState<string | null>(null);
   const [artifact, setArtifact] = useState<Artifact | null>(null);
-  const [modelCatalog, setModelCatalog] = useState<Array<{ id: string; label: string }>>([]);
-  const [selectedModel, setSelectedModel] = useState('');
+  const [modelTiers, setModelTiers] = useState<Record<string, Array<{ id: string; label: string }>>>({});
+  const [modelDefaults, setModelDefaults] = useState<Record<string, string>>({});
+  const [selectedModel, setSelectedModel] = useState(() => {
+    try { return localStorage.getItem('orin_model') || ''; } catch { return ''; }
+  });
+  const [modelOpen, setModelOpen] = useState(false);
+  const manualPickRef = useRef(false);
+  const modelWrapRef = useRef<HTMLDivElement>(null);
   const [openThinking, setOpenThinking] = useState<Record<string, boolean>>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -230,18 +236,59 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
     setChatError(null);
   }, [activeConvId]);
 
-  // Free-model catalog for the picker (coding tier default = best free coder).
+  // Free-model catalog: live tiers from /api/models. Default follows the
+  // mode (thinking → thinking tier, else balanced); a manual pick sticks
+  // (persisted) and disables auto-follow.
   useEffect(() => {
     fetch('/api/models')
       .then((r) => r.json())
       .then((data) => {
-        const coding = data?.tiers?.coding || [];
-        setModelCatalog(coding);
-        if (!selectedModel && data?.defaults?.coding) setSelectedModel(data.defaults.coding);
+        const tiers = data?.tiers || {};
+        const defaults = data?.defaults || {};
+        setModelTiers(tiers);
+        setModelDefaults(defaults);
+        const allIds = new Set(Object.values(tiers).flat().map((m: any) => m.id));
+        const stored = (() => { try { return localStorage.getItem('orin_model') || ''; } catch { return ''; } })();
+        if (stored && allIds.has(stored)) {
+          manualPickRef.current = true;
+          setSelectedModel(stored);
+        } else {
+          const fallback = defaults.balanced || defaults.coding || defaults.thinking || '';
+          if (fallback) setSelectedModel(fallback);
+        }
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Mode-follow: Deep on → thinking default, off → balanced default (unless picked).
+  useEffect(() => {
+    if (manualPickRef.current) return;
+    const next = thinkingMode
+      ? (modelDefaults.thinking || modelDefaults.balanced)
+      : (modelDefaults.balanced || modelDefaults.coding);
+    if (next) setSelectedModel(next);
+  }, [thinkingMode, modelDefaults]);
+
+  // Close the model dropdown on outside tap.
+  useEffect(() => {
+    if (!modelOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!modelWrapRef.current?.contains(e.target as Node)) setModelOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [modelOpen]);
+
+  const pickModel = (id: string) => {
+    manualPickRef.current = true;
+    setSelectedModel(id);
+    try { localStorage.setItem('orin_model', id); } catch {}
+    setModelOpen(false);
+  };
+
+  const flatModels = Object.values(modelTiers).flat();
+  const selectedLabel = flatModels.find((m) => m.id === selectedModel)?.label || 'Select model';
 
   // Landing-page handoff: prefill the composer with the seeded prompt once.
   useEffect(() => {
@@ -342,7 +389,7 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
       setStepLabel('');
       setSelectedFile(null);
     }
-  }, [input, selectedFile, isTyping, imageMode, aspect, isPrivate, privateMessages, messages, thinkingMode, descriptiveMode, lang, onUpdateTitle, setMessages]);
+  }, [input, selectedFile, isTyping, imageMode, aspect, isPrivate, privateMessages, messages, thinkingMode, descriptiveMode, selectedModel, lang, onUpdateTitle, setMessages]);
 
   const togglePrivate = () => {
     setIsPrivate(prev => !prev);
@@ -363,42 +410,6 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
           {isPrivate && <i className="fa-solid fa-lock text-[10px] text-cyan-500" aria-hidden />}
         </div>
         <div className="flex items-center gap-1.5">
-          {modelCatalog.length > 0 && (
-            <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              title="Model (free tier)"
-              className="px-2 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border border-stone-300/60 dark:border-white/10 text-stone-500 dark:text-stone-300 bg-transparent hover:text-stone-700 dark:hover:text-stone-100 transition-colors max-w-[150px]"
-            >
-              {modelCatalog.map((m) => (
-                <option key={m.id} value={m.id}>{m.label}</option>
-              ))}
-            </select>
-          )}
-          <button
-            onClick={() => onReasoningModeChange({ thinking: !thinkingMode })}
-            title="Deeper reasoning"
-            aria-pressed={thinkingMode}
-            className={`px-2.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-colors ${
-              thinkingMode
-                ? 'bg-cyan-500 text-stone-950 border-cyan-500'
-                : 'border-stone-300/60 dark:border-white/10 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200'
-            }`}
-          >
-            Deep
-          </button>
-          <button
-            onClick={() => onReasoningModeChange({ descriptive: !descriptiveMode })}
-            title="More detailed answers"
-            aria-pressed={descriptiveMode}
-            className={`px-2.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-colors ${
-              descriptiveMode
-                ? 'bg-cyan-500 text-stone-950 border-cyan-500'
-                : 'border-stone-300/60 dark:border-white/10 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200'
-            }`}
-          >
-            Detailed
-          </button>
           <button
             onClick={togglePrivate}
             title={isPrivate ? 'Turn off private mode' : 'Private mode — nothing is saved'}
@@ -552,6 +563,82 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
           )}
 
           <div className="rounded-[26px] bg-white dark:bg-stone-900 border border-black/[0.07] dark:border-white/[0.08] shadow-xl shadow-black/[0.04] dark:shadow-black/40 p-2 flex flex-col gap-1">
+            {/* Model + mode pills — inline in the search bar, no modal */}
+            {!imageMode && flatModels.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap px-1 pt-1">
+                <div ref={modelWrapRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setModelOpen((v) => !v)}
+                    aria-haspopup="listbox"
+                    aria-expanded={modelOpen}
+                    title="Choose model (free tier)"
+                    className={`inline-flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${
+                      modelOpen
+                        ? 'border-cyan-500 text-stone-900 dark:text-white ring-2 ring-cyan-500/40'
+                        : 'border-stone-300/60 dark:border-white/10 text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <span className="truncate max-w-[180px]">{selectedLabel}</span>
+                    <i className={`fa-solid fa-chevron-down text-[9px] transition-transform ${modelOpen ? 'rotate-180' : ''}`} aria-hidden />
+                  </button>
+                  {modelOpen && (
+                    <div role="listbox" className="absolute top-full left-0 mt-1.5 min-w-[230px] max-h-72 overflow-auto custom-scrollbar rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-stone-900 shadow-2xl z-30 py-1">
+                      {(['thinking', 'balanced', 'coding'] as const).map((tier) => (
+                        (modelTiers[tier] || []).length > 0 && (
+                          <div key={tier}>
+                            <p className="px-3 pt-2 pb-1 text-[9px] font-black uppercase tracking-widest text-stone-400">{tier}</p>
+                            {(modelTiers[tier] || []).map((m) => (
+                              <button
+                                key={m.id}
+                                type="button"
+                                role="option"
+                                aria-selected={m.id === selectedModel}
+                                onClick={() => pickModel(m.id)}
+                                className={`w-full text-left px-3 py-2 text-[11px] font-black uppercase tracking-widest transition-colors ${
+                                  m.id === selectedModel
+                                    ? 'bg-stone-500/30 dark:bg-white/20 text-stone-900 dark:text-white'
+                                    : 'text-stone-600 dark:text-stone-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
+                                }`}
+                              >
+                                {m.label}
+                                {modelDefaults[tier] === m.id && <span className="ml-1.5 text-cyan-600 dark:text-cyan-300">· auto</span>}
+                              </button>
+                            ))}
+                          </div>
+                        )
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onReasoningModeChange({ thinking: !thinkingMode })}
+                  title="Deeper reasoning"
+                  aria-pressed={thinkingMode}
+                  className={`px-2.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${
+                    thinkingMode
+                      ? 'bg-cyan-500 text-stone-950 border-cyan-500'
+                      : 'border-stone-300/60 dark:border-white/10 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200'
+                  }`}
+                >
+                  Deep
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onReasoningModeChange({ descriptive: !descriptiveMode })}
+                  title="More detailed answers"
+                  aria-pressed={descriptiveMode}
+                  className={`px-2.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${
+                    descriptiveMode
+                      ? 'bg-cyan-500 text-stone-950 border-cyan-500'
+                      : 'border-stone-300/60 dark:border-white/10 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200'
+                  }`}
+                >
+                  Detailed
+                </button>
+              </div>
+            )}
             <textarea
               ref={inputRef}
               value={input}
