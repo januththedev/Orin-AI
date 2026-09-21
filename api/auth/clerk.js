@@ -12,7 +12,8 @@
  *
  * Env: CLERK_SECRET_KEY. Mapping lives in `clerk_links/{clerkId}`.
  */
-import { initAdmin, db, TS, httpError } from '../_lib/firebase.js';
+import { initAdmin, httpError } from '../_lib/firebase.js';
+import { sdocGet, sdocSet, TS } from '../_lib/store.js';
 import { apiHandler } from '../_lib/http.js';
 import { rateLimit } from '../_lib/ratelimit.js';
 import { verifyClerkToken, clerkUser } from '../_lib/clerk.js';
@@ -24,8 +25,7 @@ function clientIp(req) {
 }
 
 async function firebaseUidFor(clerk) {
-  const linkRef = db().collection('clerk_links').doc(String(clerk.id));
-  const link = await linkRef.get();
+  const link = await sdocGet('clerk_links', String(clerk.id));
   if (link.exists && link.data()?.firebaseUid) return link.data().firebaseUid;
   // First Clerk login: provision a Firebase user mirroring the profile.
   const create = { displayName: clerk.name || undefined };
@@ -48,14 +48,14 @@ async function firebaseUidFor(clerk) {
       throw e;
     }
   }
-  await db().collection('users').doc(uid).set({
+  await sdocSet('users', uid, {
     name: clerk.name || '',
     email: clerk.email || '',
     phone: clerk.phone || '',
     clerkId: clerk.id,
     lastUpdated: TS(),
-  }, { merge: true });
-  await linkRef.set({ firebaseUid: uid, createdAt: TS() });
+  }, true);
+  await sdocSet('clerk_links', String(clerk.id), { firebaseUid: uid, createdAt: TS() });
   return uid;
 }
 

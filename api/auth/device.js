@@ -14,7 +14,8 @@
  * rate-limited; approved/pending docs are single-use.
  */
 import crypto from 'crypto';
-import { initAdmin, db, TS, requireUser, httpError } from '../_lib/firebase.js';
+import { initAdmin, requireUser, httpError } from '../_lib/firebase.js';
+import { sdocGet, sdocSet, sdocUpdate, squery, TS } from '../_lib/store.js';
 import { apiHandler } from '../_lib/http.js';
 import { rateLimit } from '../_lib/ratelimit.js';
 
@@ -44,13 +45,13 @@ async function handler(req, res) {
     const deviceCode = crypto.randomBytes(32).toString('hex');
     const userCode = randomUserCode();
     const now = Date.now();
-    await db().collection('device_auth').doc(deviceCode).set({
+    await sdocSet('device_auth', deviceCode, {
       deviceCode,
       userCode,
       status: 'pending',
       uid: null,
       createdAt: TS(),
-      expiresAt: new Date(now + CODE_TTL_MS),
+      expiresAt: now + CODE_TTL_MS,
       attempts: 0,
     });
     return res.status(200).json({
@@ -69,15 +70,15 @@ async function handler(req, res) {
       throw httpError(429, 'Slow down');
     const { device_code: deviceCode } = req.body || {};
     if (!deviceCode || !/^[0-9a-f]{64}$/.test(String(deviceCode))) throw httpError(400, 'invalid device_code');
-    const snap = await db().collection('device_auth').doc(String(deviceCode)).get();
+    const snap = await sdocGet('device_auth', String(deviceCode));
     if (!snap.exists) return res.status(200).json({ status: 'expired' });
     const d = snap.data();
-    if (d.expiresAt?.toMillis?.() < Date.now()) return res.status(200).json({ status: 'expired' });
+    if (Number(d.expiresAt) < Date.now()) return res.status(200).json({ status: 'expired' });
     if (d.status === 'denied') return res.status(200).json({ status: 'denied' });
     if (d.status !== 'approved') return res.status(200).json({ status: 'pending' });
 
     // Single-use: consume immediately, then mint the custom token.
-    await snap.ref.update({ status: 'consumed', consumedAt: TS() });
+    await sdocUpdate('device_auth', String(deviceCode), { status: 'consumed', consumedAt: TS() });
     const customToken = await initAdmin().auth().createCustomToken(d.uid, { via: 'device-flow' });
     return res.status(200).json({ status: 'approved', custom_token: customToken });
   }
@@ -87,18 +88,17 @@ async function handler(req, res) {
     const decoded = await requireUser(req);
     const { device_code: deviceCode, deny } = req.body || {};
     if (!deviceCode || !/^[0-9a-f]{64}$/.test(String(deviceCode))) throw httpError(400, 'invalid device_code');
-    const ref = db().collection('device_auth').doc(String(deviceCode));
-    await db().runTransaction(async tx => {
-      const snap = await tx.get(ref);
-      if (!snap.exists) throw httpError(404, 'Unknown or expired code');
-      const d = snap.data();
-      if (d.expiresAt?.toMillis?.() < Date.now()) throw httpError(410, 'This code has expired. Start again from the desktop app.');
-      if (d.status !== 'pending') throw httpError(409, 'This code was already used.');
-      tx.update(ref, {
-        status: deny ? 'denied' : 'approved',
-        uid: deny ? null : decoded.uid,
-        decidedAt: TS(),
-      });
+    // Atomic approve: only a pending, unexpired code flips. Concurrent taps
+    // collapse to one winner; losers get 409 like the old transaction did.
+    const snap = await sdocGet('device_auth', String(deviceCode));
+    if (!snap.exists) throw httpError(404, 'Unknown or expired code');
+    const d = snap.data();
+    if (Number(d.expiresAt) < Date.now()) throw httpError(410, 'This code has expired. Start again from the desktop app.');
+    if (d.status !== 'pending') throw httpError(409, 'This code was already used.');
+    await sdocUpdate('device_auth', String(deviceCode), {
+      status: deny ? 'denied' : 'approved',
+      uid: deny ? null : decoded.uid,
+      decidedAt: TS(),
     });
     return res.status(200).json({ ok: true, approved: !deny });
   }
@@ -111,13 +111,14 @@ async function handler(req, res) {
     const { user_code: userCode } = req.body || {};
     const normalized = String(userCode || '').trim().toUpperCase();
     if (!/^[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(normalized)) throw httpError(400, 'Enter the code shown in the Orin desktop app.');
-    const q = await db().collection('device_auth')
-      .where('userCode', '==', normalized)
-      .where('status', '==', 'pending')
-      .limit(1).get();
-    if (q.empty) throw httpError(404, 'No waiting request found for that code. It may have expired — start again from the desktop app.');
-    const doc = q.docs[0];
-    if (doc.data().expiresAt?.toMillis?.() < Date.now()) throw httpError(410, 'This code has expired. Start again from the desktop app.');
+    const docs = await squery(
+      'device_auth',
+      [{ field: 'userCode', value: normalized }, { field: 'status', value: 'pending' }],
+      { limit: 1 },
+    );
+    if (!docs.length) throw httpError(404, 'No waiting request found for that code. It may have expired — start again from the desktop app.');
+    const doc = docs[0];
+    if (Number(doc.data().expiresAt) < Date.now()) throw httpError(410, 'This code has expired. Start again from the desktop app.');
     return res.status(200).json({ device_code: doc.id, requested_at: doc.data().createdAt });
   }
 
