@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { firebaseService } from '../services/firebaseService';
-import ClerkSignIn from './ClerkSignIn';
+import NeonSignIn, { StackSignOutBridge, stackSignOut } from './NeonSignIn';
 import { UserAccount, Language } from '../types';
 import { translations } from '../translations';
 
@@ -160,13 +160,19 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
   };
 
   const handleLogout = async () => {
-    try { await (window as any).Clerk?.signOut?.(); } catch {}
+    try { await stackSignOut(); } catch {}
     await firebaseService.logout();
     window.location.hash = 'chat';
   };
 
   return (
     <div className="min-h-full flex flex-col animate-reveal">
+      <StackSignOutBridge
+        stackEnabled={Boolean(
+          (import.meta as any)?.env?.VITE_STACK_PROJECT_ID &&
+            (import.meta as any)?.env?.VITE_STACK_PUBLISHABLE_CLIENT_KEY,
+        )}
+      />
       <header className="shrink-0 h-16 flex items-center justify-between px-5 md:px-8 border-b border-black/[0.05] dark:border-white/[0.05] bg-white/70 dark:bg-stone-900/60 backdrop-blur sticky top-0 z-40">
         <h2 className="text-xs font-black uppercase tracking-[0.2em] text-stone-800 dark:text-white">{t.profile}</h2>
         <button onClick={onClose} className="w-9 h-9 rounded-xl flex items-center justify-center text-stone-400 hover:text-red-500 hover:bg-black/[0.04] dark:hover:bg-white/[0.05] transition-colors" aria-label="Back"><i className="fa-solid fa-xmark"></i></button>
@@ -230,9 +236,12 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
                 </button>
               </form>
 
-              <ClerkSignIn
+              <NeonSignIn
                 firebaseSignedIn={false}
-                clerkEnabled={Boolean((import.meta as any)?.env?.VITE_CLERK_PUBLISHABLE_KEY)}
+                stackEnabled={Boolean(
+                  (import.meta as any)?.env?.VITE_STACK_PROJECT_ID &&
+                  (import.meta as any)?.env?.VITE_STACK_PUBLISHABLE_CLIENT_KEY,
+                )}
               />
 
               {canBrowserLogin && (

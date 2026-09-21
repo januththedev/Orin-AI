@@ -1,7 +1,7 @@
 import './index.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { ClerkProvider } from '@clerk/clerk-react';
+import { StackProvider, StackClientApp } from '@stackframe/react';
 import App from './App';
 
 const ORINAI_HOSTS = ['www.orinai.org', 'orinai.org'];
@@ -62,13 +62,23 @@ const startApp = () => {
       }).catch(() => {});
     });
   }
-
   try {
-    const clerkKey = (import.meta as any)?.env?.VITE_CLERK_PUBLISHABLE_KEY || '';
+    const stackProjectId = (import.meta as any)?.env?.VITE_STACK_PROJECT_ID || '';
+    const stackPublishableKey = (import.meta as any)?.env?.VITE_STACK_PUBLISHABLE_CLIENT_KEY || '';
     const app = <App />;
+    const root =
+      stackProjectId && stackPublishableKey ? (
+        <StackProvider
+          app={new StackClientApp({ projectId: stackProjectId, publishableClientKey: stackPublishableKey, tokenStore: 'cookie' })}
+        >
+          {app}
+        </StackProvider>
+      ) : (
+        app
+      );
     ReactDOM.createRoot(rootElement).render(
       <React.StrictMode>
-        {clerkKey ? <ClerkProvider publishableKey={clerkKey}>{app}</ClerkProvider> : app}
+        {root}
       </React.StrictMode>
     );
   } catch (err) {

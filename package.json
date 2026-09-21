@@ -9,9 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@clerk/clerk-react": "^5.61.10",
     "@google/genai": "^1.46.0",
     "@neondatabase/serverless": "^1.1.0",
+    "@stackframe/react": "^2.8.108",
     "@vercel/blob": "^2.3.2",
     "firebase": "^10.12.0",
     "firebase-admin": "^12.0.0",

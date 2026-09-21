@@ -29,6 +29,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), swVersionPlugin()],
+    resolve: {
+      // Single React copy: @stackframe/react nests react-dom; without this
+      // the app can load two Reacts and crash on hooks.
+      dedupe: ['react', 'react-dom'],
+    },
     build: {
       chunkSizeWarningLimit: 1000,
       minify: 'esbuild',
