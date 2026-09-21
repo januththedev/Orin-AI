@@ -93,16 +93,36 @@ export async function slist(collection, { limit = 100 } = {}) {
 /**
  * Atomic integer increment at a nested path (usage counters). Creates the
  * doc/rows as needed — mirrors FieldValue.increment + merge-set.
+ *
+ * NOTE: built only from single-level jsonb_set calls — multi-level paths
+ * against missing parents are unreliable, so each ancestor is ensured first.
  */
 export async function sincr(collection, id, path) {
-  const pointer = `{${path.map((p) => String(p).replace(/[^a-zA-Z0-9_]/g, '')).join(',')}}`;
-  const rows = await sql()`INSERT INTO orin_docs(collection, id, data)
-    VALUES(${collection}, ${String(id)}, '{}'::jsonb)
-    ON CONFLICT(collection, id) DO UPDATE SET
-      data = jsonb_set(orin_docs.data, ${pointer}::text[], to_jsonb(COALESCE((orin_docs.data#>>${pointer}::text[])::int, 0) + 1), true),
-      updated_at = now()
-    RETURNING (data#>>${pointer}::text[])::int AS count`;
-  const row = Array.isArray(rows) ? rows[0] : rows?.rows?.[0];
+  const clean = path.map((p) => String(p).replace(/[^a-zA-Z0-9_]/g, '')).filter(Boolean);
+  if (!clean.length) throw Object.assign(new Error('sincr needs a path'), { code: 500 });
+  const full = `'{${clean.join(',')}}'`;
+  const nav = (arr) => arr.map((k) => `->'${k}'`).join('');
+  let ensure = `COALESCE(orin_docs.data,'{}')`;
+  for (let i = 0; i < clean.length - 1; i++) {
+    const sub = clean.slice(0, i + 1);
+    ensure = `jsonb_set(${ensure}, '{${sub.join(',')}}', COALESCE(orin_docs.data${nav(sub)},'{}'))`;
+  }
+  const fresh = {};
+  let cur = fresh;
+  clean.forEach((k, i) => {
+    cur[k] = i === clean.length - 1 ? 1 : {};
+    cur = cur[k];
+  });
+  const text =
+    `INSERT INTO orin_docs(collection, id, data) VALUES($1, $2, $3) ` +
+    `ON CONFLICT(collection, id) DO UPDATE SET ` +
+    `data = jsonb_set(${ensure}, ${full}, ` +
+    `to_jsonb(COALESCE((COALESCE(orin_docs.data,'{}')#>>${full})::int, 0) + 1), true), ` +
+    `updated_at = now() ` +
+    `RETURNING (data#>>${full})::int AS count`;
+  const db = sql();
+  const rows = await db.query(text, [collection, String(id), JSON.stringify(fresh)]);
+  const row = (rows.rows || rows)[0];
   return row ? Number(row.count) : 0;
 }
 
