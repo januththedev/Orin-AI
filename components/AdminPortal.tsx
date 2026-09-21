@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserAccount, UserRole, SignupRequest, SiteMetrics } from '../types';
-import { firebaseService } from '../services/firebaseService';
+import { sessionService } from '../services/sessionService';
 import TrainingTab from './TrainingTab';
 import UserMgmtTab from './UserMgmtTab';
 import APIControls from './APIControls';
@@ -33,8 +33,8 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ user, onClose }) => {
     setLoading(true);
     try {
       const [m, r] = await Promise.all([
-        firebaseService.getSiteMetrics(),
-        isOwner ? firebaseService.getPendingRequests() : Promise.resolve([])
+        sessionService.getSiteMetrics(),
+        isOwner ? sessionService.getPendingRequests() : Promise.resolve([])
       ]);
       setMetrics(m);
       setRequests(r);
@@ -46,7 +46,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ user, onClose }) => {
   const handleSignupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await firebaseService.submitSignupRequest(signupForm.email, signupForm.reason);
+    await sessionService.submitSignupRequest(signupForm.email, signupForm.reason);
     alert("Signup request submitted for approval.");
     setSignupForm({ email: '', reason: '' });
     setLoading(false);

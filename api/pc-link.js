@@ -1,7 +1,7 @@
 /**
  * POST /api/pc-link — pairs the Orin Code PC app with the user's Telegram.
  *
- * Actions (Bearer Firebase ID token, except claim/decide which carry the
+  * Actions (Bearer Orin session token, except claim/decide which carry the
  * server-only PC_LINK_SECRET because they originate from the bot webhook):
  *   start  {}                                    → { code } (10 min TTL)
  *   status {}                                    → { linked, chatId? }
@@ -14,7 +14,7 @@
  *
  * Env: PC_LINK_SECRET (long random; never leaves the server).
  */
-import { requireUser, httpError } from './_lib/firebase.js';
+import { requireUser, httpError } from './_lib/auth.js';
 import { apiHandler } from './_lib/http.js';
 import { rateLimit } from './_lib/ratelimit.js';
 import { createCode, claimCode, bindingFor, unbind, pushApproval, pollDecisions, decide } from './_lib/pclink.js';

@@ -1,7 +1,7 @@
 {
   "rewrites": [
     {
-      "source": "/((?!api/|sitemap.xml|robots.txt|favicon.svg|firebase-messaging-sw.js|sw.js|manifest.json|assets|privacy\\.html|releases\\.html).*)",
+      "source": "/((?!api/|sitemap.xml|robots.txt|favicon.svg|sw.js|manifest.json|assets|privacy\\.html|releases\\.html).*)",
       "destination": "/index.html"
     }
   ]

@@ -184,7 +184,8 @@ export interface SignupRequest {
 
 export interface ApiKeyDef {
   id: string;
-  hash: string;
+  hash?: string; // never sent by the server; display uses hashPrefix
+  hashPrefix?: string;
   note: string;
   createdAt: any;
   enabled: boolean;

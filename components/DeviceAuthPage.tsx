@@ -4,7 +4,7 @@
  * → user signs in (if needed) → taps Approve → the app signs in automatically.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { firebaseService } from '../services/firebaseService';
+import { sessionService } from '../services/sessionService';
 import { UserAccount } from '../types';
 
 interface DeviceAuthPageProps {
@@ -35,7 +35,7 @@ const DeviceAuthPage: React.FC<DeviceAuthPageProps> = ({ onClose, user }) => {
     }
     setStage('reading');
     try {
-      const token = await firebaseService.getIdToken();
+      const token = await sessionService.getIdToken();
       const res = await fetch('/api/auth/device', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -44,7 +44,8 @@ const DeviceAuthPage: React.FC<DeviceAuthPageProps> = ({ onClose, user }) => {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setMessage(data.error || 'Could not find that login request.'); setStage('error'); return; }
       setDeviceCode(data.device_code);
-      setRequestedAt(data.requested_at?.toDate ? data.requested_at.toDate() : null);
+      const ra = data.requested_at;
+      setRequestedAt(typeof ra === 'number' ? new Date(ra) : (ra?.toDate ? ra.toDate() : null));
       setStage('confirm');
     } catch {
       setMessage('Network error. Check your connection and retry.');
@@ -62,7 +63,7 @@ const DeviceAuthPage: React.FC<DeviceAuthPageProps> = ({ onClose, user }) => {
     setDeciding(true);
     setStage('approving');
     try {
-      const token = await firebaseService.getIdToken();
+      const token = await sessionService.getIdToken();
       const res = await fetch('/api/auth/device', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },

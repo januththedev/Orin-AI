@@ -11,7 +11,7 @@
  *     embeddings / computer-use / code-exec) → Google Gemini API
  *     (tool/sensory capabilities with no OpenRouter equivalent)
  *
- * Auth: Bearer Firebase ID token REQUIRED for every mode.
+  * Auth: Bearer Orin session token REQUIRED for every mode.
  * Quotas are enforced SERVER-SIDE here (daily text per plan, rolling 30-day
  * media windows) and usage is incremented authoritatively after each success —
  * the client copy is display-only and cannot be trusted.
@@ -20,7 +20,7 @@
  *      fallback), GEMINI_API_KEY (API_KEY accepted as legacy alias),
  *      FIREBASE_SERVICE_ACCOUNT.
  */
-import { verifyUser, httpError } from './_lib/firebase.js';
+import { verifyUser, httpError } from './_lib/auth.js';
 import { sdocGet, sdocUpdate, sincr, TS } from './_lib/store.js';
 import { apiHandler } from './_lib/http.js';
 import { GoogleGenAI } from '@google/genai';
@@ -28,7 +28,7 @@ import { PROVIDER_POOLS, chainFor, resolveChain, route } from './_lib/omni.js';
 
 export const config = { maxDuration: 120 };
 
-// ── Plan limits (authoritative mirror of the UI copy in firebaseService.ts) ──
+// ── Plan limits (authoritative mirror of the UI copy in sessionService.ts) ──
 const LIMITS = {
   free:         { textPerDay: 200,  imagesPer30d: 10,  videosPer30d: 0 },
   starter:      { textPerDay: 200,  imagesPer30d: 10,  videosPer30d: 0 },

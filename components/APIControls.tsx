@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { ApiKeyDef } from '../types';
-import { firebaseService } from '../services/firebaseService';
+import { sessionService } from '../services/sessionService';
 
 export default function APIControls() {
   const [keys, setKeys] = useState<ApiKeyDef[]>([]);
@@ -9,13 +9,13 @@ export default function APIControls() {
   const [newKey, setNewKey] = useState<string | null>(null);
 
   useEffect(() => {
-    firebaseService.getApiKeys().then(setKeys);
+    sessionService.getApiKeys().then(setKeys);
   }, [newKey]);
 
   const handleGenerate = async () => {
     if (!note) return alert("Add a note first.");
     try {
-      const key = await firebaseService.generateApiKey(note);
+      const key = await sessionService.generateApiKey(note);
       setNewKey(key);
       setNote('');
     } catch (e: any) {
@@ -56,7 +56,7 @@ export default function APIControls() {
                 <div key={k.id} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
                    <div className="space-y-1">
                       <p className="text-sm font-bold text-white">{k.note}</p>
-                      <p className="text-[10px] font-mono text-slate-500">SHA256: {k.hash.substring(0, 12)}...</p>
+                       <p className="text-[10px] font-mono text-slate-500">SHA256: {(k.hashPrefix || k.hash || '').substring(0, 12)}...</p>
                    </div>
                    <div className="flex items-center gap-3">
                       <span className={`px-2 py-1 rounded text-[9px] font-black uppercase ${k.enabled ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>

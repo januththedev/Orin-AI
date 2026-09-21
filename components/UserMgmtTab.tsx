@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { SignupRequest, UserRole } from '../types';
-import { firebaseService } from '../services/firebaseService';
+import { sessionService } from '../services/sessionService';
 
 interface UserMgmtTabProps {
   requests: SignupRequest[];
@@ -13,7 +13,7 @@ export default function UserMgmtTab({ requests, onRefresh }: UserMgmtTabProps) {
   const handleAction = async (uid: string, role: UserRole) => {
     if (!confirm(`Approve user as ${role}?`)) return;
     try {
-      await firebaseService.approveUser(uid, role);
+      await sessionService.approveUser(uid, role);
       alert("User Approved.");
       onRefresh();
     } catch (e: any) {

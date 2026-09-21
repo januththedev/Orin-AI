@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { firebaseService } from '../services/firebaseService';
+import { sessionService } from '../services/sessionService';
 
 export default function TrainingTab() {
   const [imageUrl, setImageUrl] = useState('');
@@ -12,7 +12,7 @@ export default function TrainingTab() {
     if (!imageUrl.trim()) return;
     setProcessing(true);
     try {
-      const result = await firebaseService.processOCR(imageUrl, lang);
+      const result = await sessionService.processOCR(imageUrl, lang);
       setOcrResult(result);
     } catch (err: any) {
       alert("OCR Processing Failed: " + err.message);

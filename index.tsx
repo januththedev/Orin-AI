@@ -1,7 +1,6 @@
 import './index.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { StackProvider, StackClientApp } from '@stackframe/react';
 import App from './App';
 
 const ORINAI_HOSTS = ['www.orinai.org', 'orinai.org'];
@@ -63,22 +62,10 @@ const startApp = () => {
     });
   }
   try {
-    const stackProjectId = (import.meta as any)?.env?.VITE_STACK_PROJECT_ID || '';
-    const stackPublishableKey = (import.meta as any)?.env?.VITE_STACK_PUBLISHABLE_CLIENT_KEY || '';
     const app = <App />;
-    const root =
-      stackProjectId && stackPublishableKey ? (
-        <StackProvider
-          app={new StackClientApp({ projectId: stackProjectId, publishableClientKey: stackPublishableKey, tokenStore: 'cookie' })}
-        >
-          {app}
-        </StackProvider>
-      ) : (
-        app
-      );
     ReactDOM.createRoot(rootElement).render(
       <React.StrictMode>
-        {root}
+        {app}
       </React.StrictMode>
     );
   } catch (err) {

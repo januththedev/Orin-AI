@@ -1,5 +1,5 @@
 /**
- * POST /api/auth/password — Orin AI first-party accounts (the ONLY sign-in method).
+ * POST /api/auth/password — Orin AI first-party accounts (password sign-in).
  *
  * body: { action: 'register' | 'login' | 'set-password' | 'reset-verify' | 'reset-confirm', ... }
  *   register:      { name, email, phone, password, confirmPassword }
@@ -9,18 +9,19 @@
  *   reset-verify:  { name, email, phone }    — ALL must match → short-lived reset token
  *   reset-confirm: { resetToken, password, confirmPassword } → new password + session revocation
  *
- * Returns {customToken} for register/login — client signs in via signInWithCustomToken
- * so every existing Firebase-ID-token endpoint/rule works unchanged.
+ * Returns {sessionToken, user} for register/login — the client stores the
+ * Orin session token (HS256, 30 days) and sends it as the Bearer token.
+ * Identity lives in Neon (users / password_credentials / auth_identifiers /
+ * password_resets). No Firebase, no Clerk — nothing leaves this backend.
  *
  * Design notes:
  * - Passwords hashed with scrypt (_lib/passwords.js); hashes + identifier lookups live in
- *   password_credentials / auth_identifiers / password_resets — all denied to clients by rules.
- * - Auth users get a random unusable Firebase password: ALL checks happen HERE behind rate limits.
+ *   password_credentials / auth_identifiers / password_resets in Neon.
  * - Reset tokens are ≥256-bit random, stored SHA-256-hashed, single-use, 15-minute TTL;
- *   confirming a reset revokes all existing sessions (revokeRefreshTokens).
+ *   confirming a reset bumps users/{uid}.tokenVersion (revokes all sessions).
  */
 import crypto from 'crypto';
-import { initAdmin, requireUser, httpError } from '../_lib/firebase.js';
+import { requireUser, mintSession, httpError } from '../_lib/auth.js';
 import { sdocGet, sdocSet, sdocUpdate, sdocDelete, squery, TS } from '../_lib/store.js';
 import { apiHandler } from '../_lib/http.js';
 import { hashPassword, verifyPassword } from '../_lib/passwords.js';
@@ -53,8 +54,17 @@ async function ensureProfile(uid, { name, email, phone }) {
   }, true);
 }
 
-async function issueCustomToken(uid) {
-  return initAdmin().auth().createCustomToken(uid);
+async function currentTokenVersion(uid) {
+  try {
+    const snap = await sdocGet('users', String(uid));
+    return snap.exists ? (Number(snap.data()?.tokenVersion) || 0) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function issueSession(uid, email) {
+  return mintSession(String(uid), { email: email || '', tv: await currentTokenVersion(uid) });
 }
 
 async function hasPasswordCredential(uid) {
@@ -69,12 +79,10 @@ async function assertIdentifiersFree(emailNorm, phoneNorm) {
   const snaps = await Promise.all(keys.map(k => sdocGet('auth_identifiers', k.key)));
   for (let i = 0; i < snaps.length; i++) {
     if (!snaps[i].exists) continue;
-    const claimedUid = snaps[i].data().uid;
-    let googleOnly = false;
-    try {
-      const fbUser = await initAdmin().auth().getUser(claimedUid);
-      googleOnly = !!fbUser.email && !(await hasPasswordCredential(claimedUid));
-    } catch { /* record points at a vanished user */ }
+    const claimedUid = String(snaps[i].data().uid);
+    // Google-created accounts have no password credential yet — tell the
+    // user to sign in with Google once, then add a password in settings.
+    const googleOnly = !(await hasPasswordCredential(claimedUid));
     if (googleOnly) {
       throw httpError(409, 'An Orin account with this ' + keys[i].label +
         ' already exists via Google sign-in. Sign in with Google once, then add a password in Account Settings.');
@@ -129,23 +137,9 @@ async function handler(req, res) {
       phoneNorm
     );
 
-    // Create the Firebase Auth user (random unusable password — logins come through here).
-    let fbUser;
+    // New Orin identity: uid + Neon rows (no external auth provider involved).
+    const uid = 'pw_' + crypto.randomBytes(12).toString('hex');
     try {
-      fbUser = await initAdmin().auth().createUser({
-        ...(emailNorm ? { email: emailNorm.value, emailVerified: false } : {}),
-        password: crypto.randomBytes(32).toString('hex'),
-        displayName: String(b.name).trim(),
-      });
-    } catch (e) {
-      if (String(e?.code || '').includes('email-already-exists')) {
-        throw httpError(409, 'An account with this email already exists.');
-      }
-      throw e;
-    }
-
-    try {
-      const uid = fbUser.uid;
       await sdocSet('password_credentials', uid, {
         hash: hashPassword(b.password),
         identifierType: 'email',
@@ -161,9 +155,9 @@ async function handler(req, res) {
         phone: phoneNorm ? phoneNorm.value : null,
       });
 
-      const customToken = await issueCustomToken(uid);
+      const sessionToken = await issueSession(uid, emailNorm ? emailNorm.value : '');
       return res.status(200).json({
-        customToken,
+        sessionToken,
         user: {
           id: uid,
           name: String(b.name).trim(),
@@ -172,7 +166,13 @@ async function handler(req, res) {
         },
       });
     } catch (e) {
-      try { await initAdmin().auth().deleteUser(fbUser.uid); } catch {}
+      // Best-effort rollback of the half-created identity.
+      try {
+        await sdocDelete('password_credentials', uid);
+        if (emailNorm) await sdocDelete('auth_identifiers', identifierKey(emailNorm));
+        if (phoneNorm) await sdocDelete('auth_identifiers', identifierKey(phoneNorm));
+        await sdocDelete('users', uid);
+      } catch {}
       throw e;
     }
   }
@@ -201,9 +201,9 @@ async function handler(req, res) {
 
     const profileSnap = await sdocGet('users', String(uid));
     const p = profileSnap.data() || {};
-    const customToken = await issueCustomToken(String(uid));
+    const sessionToken = await issueSession(String(uid), p.email || credSnap.data().email || '');
     return res.status(200).json({
-      customToken,
+      sessionToken,
       user: {
         id: uid,
         name: p.name || '',
@@ -317,7 +317,11 @@ async function handler(req, res) {
     // New hash + invalidate every existing session for this user.
     await sdocSet('password_credentials', uid,
       { hash: hashPassword(password), updatedAt: TS() }, true);
-    await initAdmin().auth().revokeRefreshTokens(uid);
+    try {
+      const usnap = await sdocGet('users', uid);
+      const tv = usnap.exists ? (Number(usnap.data()?.tokenVersion) || 0) : 0;
+      await sdocSet('users', uid, { tokenVersion: tv + 1, updatedAt: TS() }, true);
+    } catch {}
 
     // Consume any other outstanding reset tokens for this uid.
     const others = await squery('password_resets', [{ field: 'uid', value: uid }]);

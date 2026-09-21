@@ -1,9 +1,9 @@
 /**
  * Calls the backend to create a Stripe Checkout Session and returns the redirect URL.
- * Sends the caller's Firebase ID token — the backend attributes the session to the
+ * Sends the caller's Orin session token — the backend attributes the session to the
  * authenticated user only (never to a client-supplied userId).
  */
-import { firebaseService } from './firebaseService';
+import { sessionService } from './sessionService';
 
 const API_BASE = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -14,7 +14,7 @@ export async function createCheckoutSession(params: {
   successUrl?: string;
   cancelUrl?: string;
 }): Promise<{ url: string } | { error: string }> {
-  const token = await firebaseService.getIdToken();
+  const token = await sessionService.getIdToken();
   const res = await fetch(`${API_BASE}/api/create-checkout-session`, {
     method: 'POST',
     headers: {

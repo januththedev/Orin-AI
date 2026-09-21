@@ -30,8 +30,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), swVersionPlugin()],
     resolve: {
-      // Single React copy: @stackframe/react nests react-dom; without this
-      // the app can load two Reacts and crash on hooks.
+      // Single React copy so the app can never load two Reacts and crash on hooks.
       dedupe: ['react', 'react-dom'],
     },
     build: {
@@ -44,11 +43,6 @@ export default defineConfig(({ mode }) => {
           manualChunks(id) {
             // AI SDK — largest dep, rarely changes → separate chunk
             if (id.includes('@google/genai')) return 'vendor-ai';
-            // Firebase — split into smaller pieces
-            if (id.includes('firebase/firestore')) return 'vendor-firebase-firestore';
-            if (id.includes('firebase/auth') || id.includes('firebase/compat')) return 'vendor-firebase-auth';
-            if (id.includes('firebase/app') || id.includes('firebase/messaging')) return 'vendor-firebase-core';
-            if (id.includes('firebase-admin')) return 'vendor-firebase-admin';
             // Math — heavy, only in maths tab
             if (id.includes('nerdamer')) return 'vendor-nerdamer';
             if (id.includes('mathjs')) return 'vendor-mathjs';
@@ -64,14 +58,6 @@ export default defineConfig(({ mode }) => {
     define: {
       // Expose API Keys
       'process.env.API_KEY': JSON.stringify(env.API_KEY || env.VITE_API_KEY),
-      'process.env.FIREBASE_API_KEY': JSON.stringify(env.FIREBASE_API_KEY || env.VITE_FIREBASE_API_KEY),
-      'process.env.FIREBASE_APP_ID': JSON.stringify(env.FIREBASE_APP_ID || env.VITE_FIREBASE_APP_ID),
-      'process.env.FIREBASE_AUTH_DOMAIN': JSON.stringify(env.FIREBASE_AUTH_DOMAIN || env.VITE_FIREBASE_AUTH_DOMAIN),
-      'process.env.FIREBASE_PROJECT_ID': JSON.stringify(env.FIREBASE_PROJECT_ID || env.VITE_FIREBASE_PROJECT_ID),
-      'process.env.FIREBASE_STORAGE_BUCKET': JSON.stringify(env.FIREBASE_STORAGE_BUCKET || env.VITE_FIREBASE_STORAGE_BUCKET),
-      'process.env.FIREBASE_MESSAGING_SENDER_ID': JSON.stringify(env.FIREBASE_MESSAGING_SENDER_ID || env.VITE_FIREBASE_MESSAGING_SENDER_ID),
-      'process.env.FIREBASE_MEASUREMENT_ID': JSON.stringify(env.FIREBASE_MEASUREMENT_ID || env.VITE_FIREBASE_MEASUREMENT_ID),
-      'process.env.VAPID_KEY': JSON.stringify(env.VAPID_KEY || env.VITE_VAPID_KEY),
       'process.env.VITE_RECAPTCHA_SITE_KEY': JSON.stringify(env.VITE_RECAPTCHA_SITE_KEY || env.RECAPTCHA_SITE_KEY || ''),
       // Shim Node's global for browser-only libs (e.g. plotly/has-hover)
       global: 'window',

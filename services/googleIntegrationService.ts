@@ -3,7 +3,7 @@
  * Token exchange and refresh are handled server-side via /api/auth/google.
  * This module only calls the backend — never touches raw tokens.
  */
-import { firebaseService } from './firebaseService';
+import { sessionService } from './sessionService';
 
 // ── Scope definitions per feature module ─────────────────────────────────────
 export const GOOGLE_MODULES = {
@@ -26,7 +26,7 @@ let _statusFetchedAt = 0;
 
 async function getAuthHeader(): Promise<Record<string, string>> {
   try {
-    const tok = await (firebaseService as any).getIdToken?.();
+    const tok = await (sessionService as any).getIdToken?.();
     return tok ? { Authorization: `Bearer ${tok}` } : {};
   } catch { return {}; }
 }

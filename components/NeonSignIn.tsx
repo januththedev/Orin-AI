@@ -1,89 +1,99 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { SignIn, useUser, useStackApp } from '@stackframe/react';
-import { firebaseService } from '../services/firebaseService';
 /**
- * Neon Auth sign-in (Google + any dashboard-enabled method: email/phone +
- * password, codes, links — all driven by the Neon/Stack dashboard). On
- * sign-in, exchanges the Neon access token for a Firebase custom token so
- * quotas, sync, device flow, and the PC app keep working unchanged.
- *
- * Rendered only when the parent confirms Stack is configured (so these
- * hooks always run inside StackProvider) and no Firebase session is active.
+ * Google sign-in button (Google Identity Services) — the visible Google
+ * sign-in on the website. Google verifies the user; our backend
+ * (POST /api/auth/google {action:'signin'}) verifies the credential with
+ * Google, links the Orin identity in Neon, and returns an Orin session.
+ * No Firebase, no Clerk, no third-party auth SDK.
  */
-function NeonInner() {
-  const user = useUser();
-  const stackApp = useStackApp();
+import React, { useEffect, useRef, useState } from 'react';
+import { sessionService } from '../services/sessionService';
+
+declare global {
+  interface Window {
+    google?: any;
+  }
+}
+
+const GIS_SRC = 'https://accounts.google.com/gsi/client';
+
+function loadGis(): Promise<void> {
+  if (typeof window === 'undefined') return Promise.reject(new Error('No window'));
+  if (window.google?.accounts?.id) return Promise.resolve();
+  const existing = document.querySelector(`script[src="${GIS_SRC}"]`);
+  if (existing) {
+    return new Promise((resolve, reject) => {
+      existing.addEventListener('load', () => resolve(), { once: true });
+      existing.addEventListener('error', () => reject(new Error('Could not load Google sign-in.')), { once: true });
+    });
+  }
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = GIS_SRC;
+    s.async = true;
+    s.defer = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Could not load Google sign-in. Check your connection.'));
+    document.head.appendChild(s);
+  });
+}
+
+const NeonSignIn: React.FC = () => {
+  const btnRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const exchangedFor = useRef<string | null>(null);
+  const clientId = (import.meta as any)?.env?.VITE_GOOGLE_CLIENT_ID || '';
 
   useEffect(() => {
-    if (!user) return;
-    if (exchangedFor.current === user.id) return;
-    exchangedFor.current = user.id;
+    if (!clientId || !btnRef.current) return;
+    let cancelled = false;
     (async () => {
-      setBusy(true);
-      setError(null);
       try {
-        const token = await stackApp.getAccessToken();
-        if (!token) throw new Error('No Neon session token.');
-        const res = await fetch('/api/auth/neon', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'exchange', token }),
+        await loadGis();
+        if (cancelled || !btnRef.current || !window.google?.accounts?.id) return;
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: async (resp: any) => {
+            if (!resp?.credential) return;
+            setBusy(true);
+            setError(null);
+            try {
+              await sessionService.signInWithGoogle(resp.credential);
+              window.location.hash = 'chat';
+            } catch (err: any) {
+              setError(err?.message || 'Google sign-in failed.');
+            } finally {
+              setBusy(false);
+            }
+          },
         });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || 'Account link failed.');
-        await firebaseService.signInWithCustom(data.customToken);
-        window.location.hash = 'chat';
+        window.google.accounts.id.renderButton(btnRef.current, {
+          theme: 'outline',
+          size: 'large',
+          width: 320,
+          text: 'signin_with',
+        });
       } catch (err: any) {
-        setError(err?.message || 'Sign-in link failed.');
-        exchangedFor.current = null;
-        try { await (user as any)?.signOut?.(); } catch {}
-      } finally {
-        setBusy(false);
+        if (!cancelled) setError(err?.message || 'Could not load Google sign-in.');
       }
     })();
-  }, [user, stackApp]);
+    return () => { cancelled = true; };
+  }, [clientId]);
+
+  if (!clientId) {
+    return (
+      <p className="text-[11px] font-bold text-stone-400">
+        Google sign-in is not configured yet (VITE_GOOGLE_CLIENT_ID).
+      </p>
+    );
+  }
 
   return (
-    <div className="w-full">
-      <SignIn />
-      {busy && <p className="text-xs font-bold text-stone-500 mt-2">Linking your Orin account…</p>}
-      {error && <p role="status" className="text-xs font-bold text-red-500 mt-2">{error}</p>}
+    <div className="w-full flex flex-col items-center gap-2">
+      <div ref={btnRef} className="flex justify-center min-h-[44px]" />
+      {busy && <p className="text-xs font-bold text-stone-500">Signing you in…</p>}
+      {error && <p role="status" className="text-xs font-bold text-red-500">{error}</p>}
     </div>
   );
-}
-
-const NeonSignIn: React.FC<{ firebaseSignedIn: boolean; stackEnabled: boolean }> = ({
-  firebaseSignedIn,
-  stackEnabled,
-}) => {
-  if (!stackEnabled || firebaseSignedIn) return null;
-  return <NeonInner />;
 };
-
-function StackSignOutBridgeInner() {
-  const stackApp = useStackApp();
-  useEffect(() => {
-    (window as any).__orinStackSignOut = () => stackApp.signOut();
-    return () => {
-      delete (window as any).__orinStackSignOut;
-    };
-  }, [stackApp]);
-  return null;
-}
-
-/** Mount once when Stack is configured so sign-out covers both sessions. */
-export function StackSignOutBridge({ stackEnabled }: { stackEnabled: boolean }) {
-  if (!stackEnabled) return null;
-  return <StackSignOutBridgeInner />;
-}
-
-export async function stackSignOut() {
-  try {
-    await (window as any).__orinStackSignOut?.();
-  } catch {}
-}
 
 export default NeonSignIn;

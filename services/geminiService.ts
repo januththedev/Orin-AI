@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Modality } from "@google/genai";
 import { Language, GroundingLink, AspectRatio, ImageSize, UserAccount, ChatMessage, Conversation, WorkspaceMode, MathExtractResult, MathOperation } from "../types";
-import { firebaseService } from "./firebaseService";
+import { sessionService } from "./sessionService";
 import { cacheService, CacheKey } from "./cacheService";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -110,7 +110,7 @@ export class GeminiService {
     return this.currentUser;
   }
 
-  /** Clears local state only. Do not call firebaseService.logout() here — the UI calls it, then onAuthStateChanged runs and calls this. */
+  /** Clears local state only. Do not call sessionService.logout() here — the UI calls it, then onAuthStateChanged runs and calls this. */
   async logout() {
     this.currentUser = null;
     cacheService.remove(CacheKey.USER);
@@ -193,7 +193,7 @@ export class GeminiService {
   } = {}): Promise<{ text: string; links: GroundingLink[]; reasoning_details?: any; thinking?: string; model?: string }> {
     // ── Plan / guest limit check ──────────────────────────────────────────
     if (this.currentUser) {
-      const limitReached = await firebaseService.checkLimit(this.currentUser.id, 'text');
+      const limitReached = await sessionService.checkLimit(this.currentUser.id, 'text');
       if (limitReached) throw new AppError("Plan limit reached. Upgrade to continue.", "limit_reached");
     } else {
       this.resetGuestWindows();
@@ -210,7 +210,7 @@ export class GeminiService {
 
     // ── Auth token for backend ────────────────────────────────────────────
     let idToken: string | null = null;
-    try { idToken = await firebaseService.getIdToken(); } catch {}
+    try { idToken = await sessionService.getIdToken(); } catch {}
 
     const plan = this.currentUser?.plan?.toLowerCase() ?? 'free';
 
@@ -262,7 +262,7 @@ export class GeminiService {
         const last = this.lastMemoryUpdateByUser.get(uid) ?? 0;
         if (shouldUpdateMemoryFromExchange(prompt || '') && now - last >= MEMORY_UPDATE_COOLDOWN_MS) {
           this.lastMemoryUpdateByUser.set(uid, now);
-          firebaseService.getUserMemory(uid).then(mem =>
+          sessionService.getUserMemory(uid).then(mem =>
             this.updateMemoryFromExchange(uid, mem, prompt || '', data.text || '')
           ).catch(console.error);
         }
@@ -296,7 +296,7 @@ export class GeminiService {
       throw new AppError("Agent mode (Computer Use) is a Pro-only feature. Upgrade to use browser automation.", "plan_required");
     }
     let idToken: string | null = null;
-    try { idToken = await firebaseService.getIdToken(); } catch {}
+    try { idToken = await sessionService.getIdToken(); } catch {}
     const r = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
@@ -308,7 +308,7 @@ export class GeminiService {
 
   async generateImagePro(prompt: string, aspectRatio: AspectRatio, size: ImageSize, signal?: AbortSignal, referenceImage?: { data: string; mimeType: string }): Promise<string> {
     if (this.currentUser) {
-       if (await firebaseService.checkLimit(this.currentUser.id, 'images')) throw new AppError("Image limit reached.", "limit_reached");
+       if (await sessionService.checkLimit(this.currentUser.id, 'images')) throw new AppError("Image limit reached.", "limit_reached");
     } else {
        this.resetGuestWindows();
        if (this.guestUsage.uploadCount >= this.guestUsage.uploadMax) {
@@ -318,7 +318,7 @@ export class GeminiService {
 
     try {
       let idToken: string | null = null;
-      try { idToken = await firebaseService.getIdToken(); } catch {}
+      try { idToken = await sessionService.getIdToken(); } catch {}
       const plan = this.currentUser?.plan?.toLowerCase() ?? 'free';
       const r = await fetch('/api/chat', {
         method: 'POST',
@@ -329,7 +329,7 @@ export class GeminiService {
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || 'Image generation failed'); }
       const data = await r.json();
       if (!this.currentUser) { this.resetGuestWindows(); this.guestUsage.uploadCount++; }
-      else { firebaseService.incrementUsage(this.currentUser.id, 'images').catch(() => {}); }
+      else { sessionService.incrementUsage(this.currentUser.id, 'images').catch(() => {}); }
       return data.dataUrl;
     } catch (err: any) {
       const msg = err?.message || String(err);
@@ -358,7 +358,7 @@ export class GeminiService {
       if (!hasVideoPlan) {
         throw new AppError("Video generation requires a Basic or Pro plan. Upgrade to continue.", "plan_required");
       }
-      if (await firebaseService.checkLimit(this.currentUser.id, 'videos')) throw new AppError("Video limit reached.", "limit_reached");
+      if (await sessionService.checkLimit(this.currentUser.id, 'videos')) throw new AppError("Video limit reached.", "limit_reached");
     } else {
       this.resetGuestWindows();
       if (this.guestUsage.uploadCount >= this.guestUsage.uploadMax) {
@@ -368,7 +368,7 @@ export class GeminiService {
 
     try {
       let idToken: string | null = null;
-      try { idToken = await firebaseService.getIdToken(); } catch {}
+      try { idToken = await sessionService.getIdToken(); } catch {}
       const plan = this.currentUser?.plan?.toLowerCase() ?? 'free';
       const r = await fetch('/api/chat', {
         method: 'POST',
@@ -406,7 +406,7 @@ export class GeminiService {
     if (!text.trim()) throw new AppError("No text to speak.", 'generic');
 
     let idToken: string | null = null;
-    try { idToken = await firebaseService.getIdToken(); } catch {}
+    try { idToken = await sessionService.getIdToken(); } catch {}
     const r = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
@@ -421,7 +421,7 @@ export class GeminiService {
   private async updateMemoryFromExchange(uid: string, previousMemory: string, userPrompt: string, assistantReply: string): Promise<void> {
     try {
       let idToken: string | null = null;
-      try { idToken = await firebaseService.getIdToken(); } catch {}
+      try { idToken = await sessionService.getIdToken(); } catch {}
       const r = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
@@ -429,7 +429,7 @@ export class GeminiService {
       });
       if (!r.ok) return;
       const d = await r.json();
-      if (d.newMemory) await firebaseService.updateUserMemory(uid, d.newMemory);
+      if (d.newMemory) await sessionService.updateUserMemory(uid, d.newMemory);
     } catch (err) {
       console.error("Orin memory update pipeline failed:", err);
     }
@@ -438,7 +438,7 @@ export class GeminiService {
   async generateTitle(messages: ChatMessage[], modes: WorkspaceMode[], lang: Language): Promise<string> {
     try {
       let idToken: string | null = null;
-      try { idToken = await firebaseService.getIdToken(); } catch {}
+      try { idToken = await sessionService.getIdToken(); } catch {}
       const r = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
@@ -454,7 +454,7 @@ export class GeminiService {
     if (texts.length === 0) return [];
     try {
       let idToken: string | null = null;
-      try { idToken = await firebaseService.getIdToken(); } catch {}
+      try { idToken = await sessionService.getIdToken(); } catch {}
       const r = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
@@ -469,7 +469,7 @@ export class GeminiService {
   async embedImage(imageBase64: string, mimeType: string = 'image/png'): Promise<number[]> {
     try {
       let idToken: string | null = null;
-      try { idToken = await firebaseService.getIdToken(); } catch {}
+      try { idToken = await sessionService.getIdToken(); } catch {}
       const r = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
@@ -490,7 +490,7 @@ export class GeminiService {
   ): Promise<MathExtractResult> {
     try {
       let idToken: string | null = null;
-      try { idToken = await firebaseService.getIdToken(); } catch {}
+      try { idToken = await sessionService.getIdToken(); } catch {}
       const r = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
@@ -636,7 +636,7 @@ You are processing a live video feed. CRITICAL RULES:
     plan?: string;
   }): Promise<{ text: string; code?: string; output?: string }> {
     let idToken: string | null = null;
-    try { idToken = await firebaseService.getIdToken(); } catch {}
+    try { idToken = await sessionService.getIdToken(); } catch {}
     const plan = this.currentUser?.plan?.toLowerCase() ?? 'free';
     const safeHistory = (options.history || []).slice(-10).map(m => ({ role: m.role, content: m.content || '' }));
     const res = await fetch('/api/chat', {
@@ -655,7 +655,7 @@ You are processing a live video feed. CRITICAL RULES:
     history?: ChatMessage[];
   }): Promise<{ text: string; urlTitle?: string; urlSource?: string }> {
     let idToken: string | null = null;
-    try { idToken = await firebaseService.getIdToken(); } catch {}
+    try { idToken = await sessionService.getIdToken(); } catch {}
     const plan = this.currentUser?.plan?.toLowerCase() ?? 'free';
     const res = await fetch('/api/chat', {
       method: 'POST',
@@ -674,7 +674,7 @@ You are processing a live video feed. CRITICAL RULES:
     signal?: AbortSignal;
   }): Promise<void> {
     let idToken: string | null = null;
-    try { idToken = await firebaseService.getIdToken(); } catch {}
+    try { idToken = await sessionService.getIdToken(); } catch {}
     const plan = this.currentUser?.plan?.toLowerCase() ?? 'free';
     const res = await fetch('/api/chat', {
       method: 'POST',
@@ -712,7 +712,7 @@ You are processing a live video feed. CRITICAL RULES:
     fileData?: { data: string; mimeType: string; name?: string };
   }): Promise<string> {
     if (this.currentUser) {
-      const hit = await firebaseService.checkLimit(this.currentUser.id, 'text');
+      const hit = await sessionService.checkLimit(this.currentUser.id, 'text');
       if (hit) throw new AppError('Plan limit reached. Upgrade to continue.', 'limit_reached');
     } else {
       this.resetGuestWindows();
@@ -721,7 +721,7 @@ You are processing a live video feed. CRITICAL RULES:
     }
 
     let idToken: string | null = null;
-    try { idToken = await firebaseService.getIdToken(); } catch {}
+    try { idToken = await sessionService.getIdToken(); } catch {}
     const plan = this.currentUser?.plan?.toLowerCase() ?? 'free';
     const r = await fetch('/api/chat', {
       method: 'POST',
@@ -730,7 +730,7 @@ You are processing a live video feed. CRITICAL RULES:
     });
     if (!r.ok) throw new AppError((await r.json().catch(() => ({}))).error || 'Math solve failed', 'generic');
     const d = await r.json();
-    if (this.currentUser) firebaseService.incrementUsage(this.currentUser.id, 'text').catch(() => {});
+    if (this.currentUser) sessionService.incrementUsage(this.currentUser.id, 'text').catch(() => {});
     else { this.resetGuestWindows(); this.guestUsage.textCount++; }
     return d.text || 'No solution returned. Try again.';
   }
@@ -742,7 +742,7 @@ You are processing a live video feed. CRITICAL RULES:
       throw new AppError('Agent mode requires Basic or Pro plan.', 'plan_required');
     }
     let idToken: string | null = null;
-    try { idToken = await firebaseService.getIdToken(); } catch {}
+    try { idToken = await sessionService.getIdToken(); } catch {}
     const r = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },

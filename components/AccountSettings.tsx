@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { firebaseService } from '../services/firebaseService';
-import NeonSignIn, { StackSignOutBridge, stackSignOut } from './NeonSignIn';
+import { sessionService } from '../services/sessionService';
+import NeonSignIn from './NeonSignIn';
 import { UserAccount, Language } from '../types';
 import { translations } from '../translations';
 
@@ -49,8 +49,8 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
 
   useEffect(() => {
      if (user) {
-        firebaseService.getUserMemory(user.id).then(m => setMemory(m.slice(0, MEMORY_MAX_LENGTH)));
-        firebaseService.getUsage(user.id).then(setUsage).catch(() => {});
+        sessionService.getUserMemory(user.id).then(m => setMemory(m.slice(0, MEMORY_MAX_LENGTH)));
+        sessionService.getUsage(user.id).then(setUsage).catch(() => {});
         setEditName(user.name || '');
         setEditPhone(user.phone || '');
      } else {
@@ -60,8 +60,8 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
   }, [user]);
 
   const finalizeSignIn = async () => {
-    const fbUser = firebaseService.currentUser();
-    if (fbUser) {
+    const liveUser = sessionService.currentUser();
+    if (liveUser) {
       // Let the app's auth listener take over; call applyUser directly when provided.
       window.location.hash = 'chat';
     }
@@ -72,17 +72,17 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
     setLoading(true); setAuthMsg(null);
     try {
       if (authTab === 'login') {
-        await firebaseService.loginWithPassword(identifier.trim(), password);
+        await sessionService.loginWithPassword(identifier.trim(), password);
         await finalizeSignIn();
       } else if (authTab === 'register') {
-        await firebaseService.registerWithPassword(name.trim(), identifier.trim(), phone.replace(/[\s()\-.]/g, ''), password);
+        await sessionService.registerWithPassword(name.trim(), identifier.trim(), phone.replace(/[\s()\-.]/g, ''), password);
         await finalizeSignIn();
       } else if (!resetToken) {
-        const token = await firebaseService.requestPasswordReset(name.trim(), identifier.trim(), phone.replace(/[\s()\-.]/g, ''));
+        const token = await sessionService.requestPasswordReset(name.trim(), identifier.trim(), phone.replace(/[\s()\-.]/g, ''));
         setResetToken(token);
         setAuthMsg({ kind: 'ok', text: 'Verified. Now choose a new password.' });
       } else {
-        await firebaseService.confirmPasswordReset(resetToken, password);
+        await sessionService.confirmPasswordReset(resetToken, password);
         setResetToken(null);
         setAuthTab('login');
         setAuthMsg({ kind: 'ok', text: 'Password updated. Sign in with your new password.' });
@@ -104,7 +104,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
     }
     setLoading(true);
     try {
-      await firebaseService.updateUserProfile(user.id, { name: editName.trim(), ...(phoneDigits ? { phone: phoneDigits.startsWith('0') ? '+94' + phoneDigits.slice(1) : phoneDigits } : {}) });
+      await sessionService.updateUserProfile(user.id, { name: editName.trim(), ...(phoneDigits ? { phone: phoneDigits.startsWith('0') ? '+94' + phoneDigits.slice(1) : phoneDigits } : {}) });
       setProfileMsg({ kind: 'ok', text: 'Profile saved.' });
     } catch {
       setProfileMsg({ kind: 'err', text: 'Could not save your profile. Check your connection and retry.' });
@@ -122,7 +122,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
     if (newPw !== confirmPw) { setPwMsg({ kind: 'err', text: 'Passwords do not match.' }); return; }
     setLoading(true);
     try {
-      await firebaseService.setPassword(newPw);
+      await sessionService.setPassword(newPw);
       setNewPw(''); setConfirmPw('');
       setPwMsg({ kind: 'ok', text: 'Password saved. You can now sign in with your email/phone + password.' });
     } catch (err: any) {
@@ -136,7 +136,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
      if (user) {
         setLoading(true);
         const toSave = memory.slice(0, MEMORY_MAX_LENGTH);
-        await firebaseService.updateUserMemory(user.id, toSave);
+        await sessionService.updateUserMemory(user.id, toSave);
         if (memory.length > MEMORY_MAX_LENGTH) setMemory(toSave);
         setLoading(false);
      }
@@ -150,7 +150,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
     try {
       const r = await (window as any).orinDesktop.browserLogin();
       if (!r?.ok) throw new Error(r?.error || 'Browser sign-in failed.');
-      await firebaseService.signInWithCustom(r.customToken);
+      await sessionService.signInWithSession(r.sessionToken || r.customToken);
       window.location.hash = 'chat';
     } catch (err: any) {
       setAuthMsg({ kind: 'err', text: err?.message || 'Browser sign-in failed.' });
@@ -160,19 +160,12 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
   };
 
   const handleLogout = async () => {
-    try { await stackSignOut(); } catch {}
-    await firebaseService.logout();
+    await sessionService.logout();
     window.location.hash = 'chat';
   };
 
   return (
     <div className="min-h-full flex flex-col animate-reveal">
-      <StackSignOutBridge
-        stackEnabled={Boolean(
-          (import.meta as any)?.env?.VITE_STACK_PROJECT_ID &&
-            (import.meta as any)?.env?.VITE_STACK_PUBLISHABLE_CLIENT_KEY,
-        )}
-      />
       <header className="shrink-0 h-16 flex items-center justify-between px-5 md:px-8 border-b border-black/[0.05] dark:border-white/[0.05] bg-white/70 dark:bg-stone-900/60 backdrop-blur sticky top-0 z-40">
         <h2 className="text-xs font-black uppercase tracking-[0.2em] text-stone-800 dark:text-white">{t.profile}</h2>
         <button onClick={onClose} className="w-9 h-9 rounded-xl flex items-center justify-center text-stone-400 hover:text-red-500 hover:bg-black/[0.04] dark:hover:bg-white/[0.05] transition-colors" aria-label="Back"><i className="fa-solid fa-xmark"></i></button>
@@ -236,13 +229,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
                 </button>
               </form>
 
-              <NeonSignIn
-                firebaseSignedIn={false}
-                stackEnabled={Boolean(
-                  (import.meta as any)?.env?.VITE_STACK_PROJECT_ID &&
-                  (import.meta as any)?.env?.VITE_STACK_PUBLISHABLE_CLIENT_KEY,
-                )}
-              />
+              <NeonSignIn />
 
               {canBrowserLogin && (
                 <>

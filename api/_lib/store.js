@@ -9,8 +9,8 @@
  * `users/<uid>/files`. Atomic paths (rate limits, device approve) use single
  * conditional statements instead of transactions.
  *
- * Env: DATABASE_URL (Neon pooled connection string). Firebase Admin stays
- * for Auth (ID tokens / custom tokens) — only DATA moved to Neon.
+ * Env: DATABASE_URL (Neon pooled connection string). Auth is Orin sessions
+ * (_lib/auth.js: HS256 + Neon Auth JWT) — everything lives in Neon.
  */
 import { neon } from '@neondatabase/serverless';
 import crypto from 'crypto';

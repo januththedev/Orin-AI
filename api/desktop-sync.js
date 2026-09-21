@@ -1,10 +1,10 @@
 /**
  * GET  /api/desktop-sync — caller's desktop sync blob (or nulls if none).
  * PUT  /api/desktop-sync — replaces it. Body: { blob: object, schemaVersion? } ≤ 512 KB.
- * Auth: Firebase ID token via _lib/firebase requireUser.
+  * Auth: Orin session token via _lib/auth requireUser.
  * Storage: Neon `desktop_sync` docs, id = uid. Last-write-wins v1.
  */
-import { requireUser, httpError } from './_lib/firebase.js';
+import { requireUser, httpError } from './_lib/auth.js';
 import { sdocGet, sdocSet, TS } from './_lib/store.js';
 import { apiHandler } from './_lib/http.js';
 

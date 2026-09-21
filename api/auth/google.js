@@ -1,15 +1,23 @@
 /**
- * Google OAuth backend — token exchange + refresh + status
- * POST /api/auth/google  body: { action: 'exchange'|'refresh'|'getToken'|'disable'|'enable', code?, verifier?, module?, redirectUri? }
- * GET  /api/auth/google  → { connected: bool, modules: { gmail: bool, ... } }
+ * Google backend — sign-in + OAuth token exchange/refresh + status.
  *
- * Tokens stored AES-256-GCM encrypted in Firestore: users/{uid}/google_tokens/{module}
- * Required env vars: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, TOKEN_ENCRYPTION_KEY (32+ chars)
+ * POST /api/auth/google
+ *   PUBLIC  { action: 'signin', credential } — Google Identity Services ID
+ *             token from the client-side Google button → verified with Google,
+ *             linked to an Orin identity in Neon → { sessionToken, user }.
+ *   AUTHeD  { action: 'exchange'|'refresh'|'getToken'|'disable'|'enable', ... }
+ *             per-module Gmail/Drive/etc. OAuth (incremental consent).
+ * GET /api/auth/google → { connected, modules } (authed).
+ *
+ * Module tokens stored AES-256-GCM encrypted in Neon: users/{uid}/google_tokens/{module}
+ * Required env vars: GOOGLE_CLIENT_ID (+ VITE_GOOGLE_CLIENT_ID alias for the web
+ * button), GOOGLE_CLIENT_SECRET, TOKEN_ENCRYPTION_KEY (32+ chars)
  */
-import { requireUser } from '../_lib/firebase.js';
+import { requireUser, mintSession, sanitizeUid, httpError } from '../_lib/auth.js';
 import { sdocGet, sdocSet, sdocUpdate, slist, TS } from '../_lib/store.js';
 import { apiHandler } from '../_lib/http.js';
 import { encryptToken, decryptToken } from '../_lib/crypto.js';
+import { normalizeIdentifier, identifierKey } from '../_lib/identity.js';
 
 export const config = { maxDuration: 30 };
 
@@ -17,7 +25,69 @@ const CLIENT_ID     = process.env.GOOGLE_CLIENT_ID     || process.env.VITE_GOOGL
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 
 async function handler(req, res) {
-  const uid = await requireUser(req);
+  // ── PUBLIC: Google Identity Services sign-in ───────────────────────────────
+  // Client renders the real Google button (GIS), posts the ID token here.
+  // Verified directly with Google (aud must be our web client ID), then
+  // linked: same email as a password account → SAME identity (no fork).
+  if (req.method === 'POST' && (req.body || {}).action === 'signin') {
+    const { credential } = req.body || {};
+    if (!credential || typeof credential !== 'string') throw httpError(400, 'Google credential required');
+    if (!CLIENT_ID) throw httpError(500, 'GOOGLE_CLIENT_ID not configured');
+    let info;
+    try {
+      const r = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(credential));
+      info = await r.json();
+    } catch {
+      throw httpError(502, 'Could not reach Google. Try again.');
+    }
+    if (!info || info.aud !== CLIENT_ID) throw httpError(401, 'Google sign-in failed — try again.');
+    if (info.email_verified !== 'true' && info.email_verified !== true) throw httpError(401, 'Google email not verified.');
+    if (typeof info.exp === 'string' && Number(info.exp) * 1000 < Date.now()) throw httpError(401, 'Google sign-in expired — try again.');
+
+    const email = String(info.email || '').toLowerCase();
+    const name = String(info.name || (email ? email.split('@')[0] : 'Orin user'));
+    const avatar = String(info.picture || '');
+    const sub = sanitizeUid(info.sub);
+
+    // Link: prefer the existing identity for this email (password account).
+    let uid = 'g_' + sub;
+    try {
+      const norm = normalizeIdentifier(email);
+      if (norm) {
+        const link = await sdocGet('auth_identifiers', identifierKey(norm));
+        if (link.exists && link.data()?.uid) uid = String(link.data().uid);
+      }
+    } catch {}
+    const isNew = uid === 'g_' + sub;
+
+    if (isNew) {
+      await sdocSet('auth_identifiers', 'email:' + email, { uid, type: 'email', createdAt: TS() }).catch(() => {});
+    }
+    const snap = await sdocGet('users', uid).catch(() => ({ exists: false, data: () => ({}) }));
+    const prev = snap.exists ? (snap.data() || {}) : {};
+    await sdocSet('users', uid, {
+      ...(prev.name || name ? { name: prev.name || name } : {}),
+      email,
+      ...(prev.phone ? { phone: prev.phone } : {}),
+      ...(avatar && !prev.avatar ? { avatar } : {}),
+      authProvider: prev.authProvider || 'google',
+      googleSub: sub,
+      lastUpdated: TS(),
+    }, true);
+
+    let tv = 0;
+    try {
+      const s2 = await sdocGet('users', uid);
+      tv = s2.exists ? (Number(s2.data()?.tokenVersion) || 0) : 0;
+    } catch {}
+    const sessionToken = mintSession(uid, { email, tv });
+    return res.status(200).json({
+      sessionToken,
+      user: { id: uid, name: prev.name || name, email, phone: prev.phone || '', avatar: avatar || prev.avatar || '' },
+    });
+  }
+
+  const { uid } = await requireUser(req);
   const tokensCol = `users/${uid}/google_tokens`;
 
   // ── GET: connection status ───────────────────────────────────────────────

@@ -1,18 +1,17 @@
 /**
- * POST /api/auth/neon — bridge Neon Auth sessions into Firebase identity.
+ * POST /api/auth/neon — bridge Neon Auth sessions into Orin identity.
  *
- * The website signs in with Neon Auth (Google + any dashboard-enabled
- * method). This endpoint verifies the Neon access token (Ed25519/JWKS),
- * maps the Neon user to a Firebase user (auto-provisioned on first login),
- * and returns a Firebase custom token — so quotas, sync, device flow, and
- * the PC app keep working UNCHANGED.
+ * The website (or any client) signs in with Neon Auth dashboard-side
+ * (Google + any enabled method). This endpoint verifies the Neon access
+ * token (Ed25519/JWKS), maps the Neon user to an Orin identity in Neon
+ * (`n_<sub>`, auto-provisioned on first login), and returns an Orin
+ * session token — so quotas, sync, device flow, and the PC app work on
+ * one credential. No Firebase, no Clerk.
  *
  * body: { action: 'exchange', token }
- *   → { customToken, user: { id, name, email, phone } }
- *
- * Mapping lives in `neon_links/{neonSub}`. No new deps.
+ *   → { sessionToken, user: { id, name, email, phone } }
  */
-import { initAdmin, httpError } from '../_lib/firebase.js';
+import { mintSession, sanitizeUid, httpError } from '../_lib/auth.js';
 import { sdocGet, sdocSet, TS } from '../_lib/store.js';
 import { apiHandler } from '../_lib/http.js';
 import { rateLimit } from '../_lib/ratelimit.js';
@@ -36,41 +35,6 @@ function profileFrom(payload) {
   return { email: String(email || ''), name: String(name || 'Orin user'), phone: String(phone || ''), image: String(image || '') };
 }
 
-async function firebaseUidFor(sub, profile) {
-  const link = await sdocGet('neon_links', String(sub));
-  if (link.exists && link.data()?.firebaseUid) return link.data().firebaseUid;
-  const create = { displayName: profile.name || undefined };
-  if (profile.email) {
-    create.email = profile.email;
-    create.emailVerified = true; // verified by Neon, not by us
-  }
-  if (!profile.email && profile.phone) create.phoneNumber = profile.phone;
-  if (profile.image) create.photoURL = profile.image;
-  let uid;
-  try {
-    const record = await initAdmin().auth().createUser(create);
-    uid = record.uid;
-  } catch (e) {
-    // Email already belongs to a password account — link to it instead of
-    // forking a duplicate identity.
-    if (profile.email && e?.code === 'auth/email-already-exists') {
-      const existing = await initAdmin().auth().getUserByEmail(profile.email);
-      uid = existing.uid;
-    } else {
-      throw e;
-    }
-  }
-  await sdocSet('users', uid, {
-    name: profile.name || '',
-    email: profile.email || '',
-    phone: profile.phone || '',
-    neonSub: String(sub),
-    lastUpdated: TS(),
-  }, true);
-  await sdocSet('neon_links', String(sub), { firebaseUid: uid, createdAt: TS() });
-  return uid;
-}
-
 async function handler(req, res) {
   if (req.method !== 'POST') throw httpError(405, 'POST only');
   const { action, token } = req.body || {};
@@ -81,12 +45,30 @@ async function handler(req, res) {
 
   const payload = await verifyNeonToken(token);
   const profile = profileFrom(payload);
-  const uid = await firebaseUidFor(payload.sub, profile);
-  const customToken = await initAdmin().auth().createCustomToken(uid);
+  const uid = 'n_' + sanitizeUid(payload.sub);
 
+  const snap = await sdocGet('users', uid).catch(() => ({ exists: false, data: () => ({}) }));
+  const prev = snap.exists ? (snap.data() || {}) : {};
+  await sdocSet('users', uid, {
+    ...(prev.name || profile.name ? { name: prev.name || profile.name } : {}),
+    ...(profile.email && !prev.email ? { email: profile.email } : {}),
+    ...(profile.phone && !prev.phone ? { phone: profile.phone } : {}),
+    ...(profile.image && !prev.avatar ? { avatar: profile.image } : {}),
+    authProvider: prev.authProvider || 'neon',
+    neonSub: String(payload.sub),
+    lastUpdated: TS(),
+  }, true);
+  await sdocSet('neon_links', String(payload.sub), { uid, createdAt: TS() }).catch(() => {});
+
+  let tv = 0;
+  try {
+    const s2 = await sdocGet('users', uid);
+    tv = s2.exists ? (Number(s2.data()?.tokenVersion) || 0) : 0;
+  } catch {}
+  const sessionToken = mintSession(uid, { email: prev.email || profile.email, tv });
   return res.status(200).json({
-    customToken,
-    user: { id: uid, name: profile.name, email: profile.email, phone: profile.phone },
+    sessionToken,
+    user: { id: uid, name: prev.name || profile.name, email: prev.email || profile.email, phone: prev.phone || profile.phone },
   });
 }
 

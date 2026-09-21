@@ -5,16 +5,17 @@
  *   1. Desktop app  : POST {action:'start'}                → {device_code, user_code}
  *   2. Desktop app  : opens https://orinai.org/#device-auth?code=<user_code> in system browser
  *   3. User         : signs in on the website, taps "Approve"
- *                     POST {action:'approve', device_code} + Bearer ID token
- *   4. Desktop app  : polls POST {action:'token', device_code} → {customToken} once approved
+ *                     POST {action:'approve', device_code} + Bearer session token
+ *   4. Desktop app  : polls POST {action:'token', device_code} → {session_token} once approved
  *
  * The device_code acts as the bearer secret for polling (never shown to the user);
  * approval additionally requires a signed-in web session that confirms the SAME
  * user_code visible in the browser. Codes expire after 10 minutes; polls are
- * rate-limited; approved/pending docs are single-use.
+ * rate-limited; approved/pending docs are single-use. Auth is Orin sessions
+ * (Neon-backed) — no Firebase, no external IdP.
  */
 import crypto from 'crypto';
-import { initAdmin, requireUser, httpError } from '../_lib/firebase.js';
+import { requireUser, mintSession, httpError } from '../_lib/auth.js';
 import { sdocGet, sdocSet, sdocUpdate, squery, TS } from '../_lib/store.js';
 import { apiHandler } from '../_lib/http.js';
 import { rateLimit } from '../_lib/ratelimit.js';
@@ -77,10 +78,20 @@ async function handler(req, res) {
     if (d.status === 'denied') return res.status(200).json({ status: 'denied' });
     if (d.status !== 'approved') return res.status(200).json({ status: 'pending' });
 
-    // Single-use: consume immediately, then mint the custom token.
+    // Single-use: consume immediately, then mint the session token.
     await sdocUpdate('device_auth', String(deviceCode), { status: 'consumed', consumedAt: TS() });
-    const customToken = await initAdmin().auth().createCustomToken(d.uid, { via: 'device-flow' });
-    return res.status(200).json({ status: 'approved', custom_token: customToken });
+    let email = '';
+    let tv = 0;
+    try {
+      const usnap = await sdocGet('users', String(d.uid));
+      if (usnap.exists) {
+        email = String(usnap.data()?.email || '');
+        tv = Number(usnap.data()?.tokenVersion) || 0;
+      }
+    } catch {}
+    const sessionToken = mintSession(String(d.uid), { email, tv });
+    // `custom_token` kept as an alias so older desktop builds keep working.
+    return res.status(200).json({ status: 'approved', session_token: sessionToken, custom_token: sessionToken });
   }
 
   // ── APPROVE (signed-in user in browser) ─────────────────────────────────────

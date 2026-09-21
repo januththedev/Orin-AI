@@ -4,7 +4,7 @@ const LandingPage = lazy(() => import('./components/LandingPage'));
 const DownloadsPage = lazy(() => import('./components/DownloadsPage'));
 import { ChatMessage, Language, AppView, WorkspaceMode, Conversation, UserAccount, conversationHasUserMessage, UserThemeId } from './types';
 import { geminiService } from './services/geminiService';
-import { firebaseService } from './services/firebaseService';
+import { sessionService } from './services/sessionService';
 import { notificationService } from './services/notificationService';
 import { cacheService, CacheKey } from './services/cacheService';
 import { translations } from './translations';
@@ -41,7 +41,7 @@ const AUTH_TIMEOUT_MS = 25000; // iOS redirect needs up to 15s
 
 type AuthUserLike = { uid: string; email: string | null; displayName: string | null; photoURL: string | null };
 
-/** Local-only user used when Firestore sync fails — keeps the UI working offline. */
+/** Local-only user used when session sync fails — keeps the UI working offline. */
 function makeFallbackUser(authUser: AuthUserLike): UserAccount {
   return {
     id: authUser.uid,
@@ -202,12 +202,11 @@ const App: React.FC = () => {
       }
     }, AUTH_TIMEOUT_MS);
 
-    // Subscribe IMMEDIATELY — do not block on getRedirectResult first.
-    // iOS Safari fires onAuthStateChanged during any async wait before subscription,
-    // causing the user-restored event to be missed → infinite loading / signed out.
+    // Subscribe IMMEDIATELY on mount — the stored session resolves locally,
+    // so the user-restored event is never missed (no more infinite loading).
     let unsubscribe: (() => void) | undefined;
     let authHandled = false;
-    unsubscribe = firebaseService.onAuthStateChanged(async (authUser) => {
+    unsubscribe = sessionService.onAuthStateChanged(async (authUser) => {
       clearTimeout(safetyTimeout);
       setAuthError(null);
       if (authUser) {
@@ -220,13 +219,12 @@ const App: React.FC = () => {
           window.location.hash = deviceReturn;
         }
       } else {
-        // On iOS after signInWithRedirect, onAuthStateChanged can fire null briefly
-        // while Firebase is still reading the credential from the redirect result.
-        // Give it 3s before declaring signed-out.
+        // Signed out (or session expired) — the null event declares it
+        // directly; no redirect dance to wait for anymore.
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
         if (isMobile && !authHandled) {
           await new Promise(r => setTimeout(r, 3000));
-          const retryUser = firebaseService.currentUser();
+          const retryUser = sessionService.currentUser();
           if (retryUser) { await applyUserRef.current(retryUser); return; }
         }
         setUser(null);
@@ -237,8 +235,9 @@ const App: React.FC = () => {
       }
     });
 
-    // getRedirectResult in background — result flows through onAuthStateChanged anyway
-    firebaseService.getRedirectResult().then(({ error }) => {
+    // No redirect flow anymore (GIS signs in in place) — kept as a harmless
+    // no-op so a cached older bundle can't crash on this call.
+    sessionService.getRedirectResult().then(({ error }) => {
       if (error) setAuthError(error);
     }).catch(() => {});
 
@@ -350,7 +349,7 @@ const App: React.FC = () => {
             }
           }
           setSyncStatus('syncing');
-          await firebaseService.saveHistory(user.id, meaningfulConversations, []);
+          await sessionService.saveHistory(user.id, meaningfulConversations, []);
           setSyncStatus('success');
           setTimeout(() => setSyncStatus('idle'), 2000);
         } catch {
@@ -413,7 +412,7 @@ const App: React.FC = () => {
     });
   }, []);
 
-  const SYNC_PULL_INTERVAL_MS = 5 * 60 * 1000; // 5 min to avoid burning Firestore read quota
+  const SYNC_PULL_INTERVAL_MS = 5 * 60 * 1000; // 5 min to avoid burning DB reads
   const MIN_PULL_GAP_MS = 2 * 60 * 1000; // don't pull on every tab focus; at least 2 min since last pull
   const lastPullTimeRef = useRef<number>(0);
   const lastCloudRef = useRef<Conversation[] | null>(null);
@@ -424,12 +423,12 @@ const App: React.FC = () => {
     if (!uid) return;
     const pull = async () => {
       const now = Date.now();
-      // Skip background pulls when the tab isn't visible to reduce Firestore reads.
+      // Skip background pulls when the tab isn't visible to reduce server reads.
       if (document.visibilityState !== 'visible') return;
       if (now - lastPullTimeRef.current < MIN_PULL_GAP_MS) return;
       lastPullTimeRef.current = now;
       try {
-        const cloud = await firebaseService.getHistory(uid);
+        const cloud = await sessionService.getHistory(uid);
         if (cloud?.length !== undefined) {
           lastCloudRef.current = cloud;
           mergeHistory(cloud);
@@ -454,7 +453,7 @@ const App: React.FC = () => {
   const applyUser = useCallback(async (authUser: AuthUserLike) => {
     const fallbackUser = makeFallbackUser(authUser);
     try {
-      const syncedUser = await firebaseService.syncUserSession(authUser.uid, authUser.email || 'user@orin.ai', authUser.photoURL);
+      const syncedUser = await sessionService.syncUserSession(authUser.uid, authUser.email || 'user@orin.ai', authUser.photoURL);
       geminiService.setSessionUser(syncedUser);
       setUser(syncedUser);
       if (syncedUser.theme) {
@@ -462,7 +461,7 @@ const App: React.FC = () => {
         cacheService.set(CacheKey.USER_THEME, syncedUser.theme);
       }
       setSyncStatus('syncing');
-      const cloudHistory = await firebaseService.getHistory(authUser.uid);
+      const cloudHistory = await sessionService.getHistory(authUser.uid);
       if (cloudHistory) {
         lastCloudRef.current = cloudHistory;
         mergeHistory(cloudHistory);
@@ -470,7 +469,7 @@ const App: React.FC = () => {
       setSyncStatus('success');
       notificationService.setupForUser().catch(() => {});
     } catch {
-      // Firestore unavailable: degrade gracefully to a local-only user but keep
+      // Sync unavailable: degrade gracefully to a local-only user but keep
       // Gemini in guest mode so usage limits stay honest.
       setUser(fallbackUser);
       setSyncStatus('error');
@@ -487,10 +486,10 @@ const App: React.FC = () => {
     if (!('serviceWorker' in navigator)) return;
     const onSwMessage = async (e: MessageEvent) => {
       if (e.data?.type !== 'RECHECK_PLAN') return;
-      const authUser = firebaseService.currentUser();
+      const authUser = sessionService.currentUser();
       if (!authUser) return;
       try {
-        const refreshed = await firebaseService.syncUserSession(authUser.uid, authUser.email || '', authUser.photoURL);
+        const refreshed = await sessionService.syncUserSession(authUser.uid, authUser.email || '', authUser.photoURL);
         setUser(refreshed);
         geminiService.setSessionUser(refreshed);
       } catch { /* non-blocking */ }
@@ -522,7 +521,7 @@ const App: React.FC = () => {
     if (user?.id) {
       try {
         setSyncStatus('syncing');
-        await firebaseService.saveHistory(user.id, meaningful, [id]);
+        await sessionService.saveHistory(user.id, meaningful, [id]);
         setSyncStatus('success');
         setTimeout(() => setSyncStatus('idle'), 2000);
       } catch {
@@ -541,7 +540,7 @@ const App: React.FC = () => {
        setActiveConversationId(null);
        cacheService.remove(CacheKey.HISTORY);
        cacheService.remove(CacheKey.ACTIVE_CONV);
-       if (user?.id) await firebaseService.saveHistory(user.id, [], []);
+       if (user?.id) await sessionService.saveHistory(user.id, [], []);
        window.location.hash = 'chat';
     }
   };

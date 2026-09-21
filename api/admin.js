@@ -1,22 +1,24 @@
 /**
- * POST /api/admin — admin & onboarding operations (replaces Firebase Cloud Functions).
- * One backend, one deployment: this is now the ONLY place these exist.
+ * POST /api/admin — admin & onboarding operations. One backend, one deployment:
+ * this is now the ONLY place these exist.
  *
- * body: { action: 'create-pending-signup' | 'approve-user' | 'generate-api-key' | 'ocr-process', ... }
- *
- * Roles come from custom claims on the caller's Firebase ID token
- * (visitor | training | devops | owner), set by approve-user.
- *   create-pending-signup : any authenticated user (App Check not available on Vercel;
- *                           abuse is bounded by rate limiting)
+ * body: { action, ... }
+ *   create-pending-signup : any authenticated user (abuse bounded by rate limiting)
  *   approve-user          : owner only
  *   generate-api-key      : devops or owner
  *   ocr-process           : training, devops, or owner (mocked until Tesseract ships)
+ *   list-pending          : owner only (replaces direct Firestore reads)
+ *   list-keys             : devops or owner (hashes never leave the server)
+ *   metrics               : devops or owner
  *
- * Env: FIREBASE_SERVICE_ACCOUNT, ORIN_SECRET_CODE (optional signup bypass code).
+ * Roles live on the caller's Neon users/{uid} row (visitor | training |
+ * devops | owner), set by approve-user. No Firebase, no custom claims.
+ *
+ * Env: ORIN_SECRET_CODE (optional signup bypass code).
  */
 import crypto from 'crypto';
-import { initAdmin, requireUser, httpError } from './_lib/firebase.js';
-import { sadd, sdocSet, TS } from './_lib/store.js';
+import { requireUser, httpError } from './_lib/auth.js';
+import { sadd, sdocGet, sdocSet, squery, slist, TS } from './_lib/store.js';
 import { apiHandler } from './_lib/http.js';
 import { rateLimit } from './_lib/ratelimit.js';
 
@@ -30,14 +32,26 @@ function logAudit(action, actorUid, details) {
   }).catch(() => {}); // audit must never break the request
 }
 
-function hasRole(decoded, ...roles) {
-  return roles.includes(decoded.role);
+function hasRole(role, ...roles) {
+  return roles.includes(role);
+}
+
+/** The caller's role, from their Neon profile row (defaults to visitor). */
+async function callerRole(uid) {
+  try {
+    const snap = await sdocGet('users', String(uid));
+    const r = snap.exists ? String(snap.data()?.role || 'visitor') : 'visitor';
+    return VALID_ROLES.includes(r) ? r : 'visitor';
+  } catch {
+    return 'visitor';
+  }
 }
 
 async function handler(req, res) {
   if (req.method !== 'POST') throw httpError(405, 'POST only');
   const decoded = await requireUser(req);
   const uid = decoded.uid;
+  const role = await callerRole(uid);
   const { action } = req.body || {};
 
   // ── Signup request (any signed-in user) ────────────────────────────────────
@@ -64,27 +78,25 @@ async function handler(req, res) {
 
   // ── Approve user + set role (owner only) ─────────────────────────────────────
   if (action === 'approve-user') {
-    if (!hasRole(decoded, 'owner')) throw httpError(403, 'Owner access required.');
-    const { targetUid, role, approved } = req.body || {};
-    if (!targetUid || !VALID_ROLES.includes(role)) throw httpError(400, 'targetUid and valid role required');
+    if (!hasRole(role, 'owner')) throw httpError(403, 'Owner access required.');
+    const { targetUid, role: newRole, approved } = req.body || {};
+    if (!targetUid || !VALID_ROLES.includes(newRole)) throw httpError(400, 'targetUid and valid role required');
 
-    // 1. Custom claims are the real security boundary
-    await initAdmin().auth().setCustomUserClaims(targetUid, { role });
-    // 2. Profile doc for UI display
-    await sdocSet('users', targetUid, {
-      role, approved: !!approved, updatedAt: TS(),
+    // The users row IS the security boundary now (requireUser reads it per call).
+    await sdocSet('users', String(targetUid), {
+      role: newRole, approved: !!approved, updatedAt: TS(),
     }, true);
-    // 3. Update their request row (if any)
-    await sdocSet('pending_signups', targetUid,
+    // Update their request row (if any)
+    await sdocSet('pending_signups', String(targetUid),
       { status: approved ? 'approved' : 'rejected', decidedAt: TS() }, true);
 
-    await logAudit('APPROVE_USER', uid, { targetUid, role, approved });
+    await logAudit('APPROVE_USER', uid, { targetUid, role: newRole, approved });
     return res.status(200).json({ success: true });
   }
 
   // ── API key generation (devops/owner) ──────────────────────────────────────
   if (action === 'generate-api-key') {
-    if (!hasRole(decoded, 'devops', 'owner')) throw httpError(403, 'DevOps role required.');
+    if (!hasRole(role, 'devops', 'owner')) throw httpError(403, 'DevOps role required.');
     const note = String(req.body?.note || 'Generated Key').slice(0, 100);
     const rawKey = 'orin_' + crypto.randomBytes(24).toString('hex');
     const hash = crypto.createHash('sha256').update(rawKey).digest('hex');
@@ -98,7 +110,7 @@ async function handler(req, res) {
 
   // ── OCR (training/devops/owner; mocked until Tesseract is deployed) ─────────
   if (action === 'ocr-process') {
-    if (!hasRole(decoded, 'training', 'devops', 'owner')) throw httpError(403, 'Training role required.');
+    if (!hasRole(role, 'training', 'devops', 'owner')) throw httpError(403, 'Training role required.');
     const { imageUrl, lang = 'en' } = req.body || {};
     if (!imageUrl) throw httpError(400, 'imageUrl required');
     await logAudit('OCR_PROCESS', uid, { imageUrl, lang });
@@ -109,6 +121,41 @@ async function handler(req, res) {
         { id: 1, text: 'What is the derivative of sin(x)?', prob: 0.98 },
         { id: 2, text: 'Define "Momentum".', prob: 0.95 },
       ],
+    });
+  }
+
+  // ── Pending signup requests (owner only) ───────────────────────────────────
+  if (action === 'list-pending') {
+    if (!hasRole(role, 'owner')) throw httpError(403, 'Owner access required.');
+    const docs = await squery('pending_signups', [{ field: 'status', value: 'pending' }], { limit: 100 });
+    return res.status(200).json({
+      requests: docs.map(d => ({ id: d.id, ...(d.data() || {}) })),
+    });
+  }
+
+  // ── API keys (devops/owner; hashes never leave the server) ───────────────────
+  if (action === 'list-keys') {
+    if (!hasRole(role, 'devops', 'owner')) throw httpError(403, 'DevOps role required.');
+    const docs = await slist('api_keys', { limit: 100 });
+    return res.status(200).json({
+      keys: docs.map(d => {
+        const data = d.data() || {};
+        return { id: d.id, note: data.note || '', createdBy: data.createdBy || '', enabled: data.enabled !== false, createdAt: data.createdAt || 0, hashPrefix: String(data.hash || '').slice(0, 12) };
+      }),
+    });
+  }
+
+  // ── Site metrics (devops/owner) ──────────────────────────────────────────────
+  if (action === 'metrics') {
+    if (!hasRole(role, 'devops', 'owner')) throw httpError(403, 'DevOps role required.');
+    const snap = await sdocGet('site_metrics', 'meters');
+    const data = snap.exists ? (snap.data() || {}) : {};
+    return res.status(200).json({
+      totalUsers: data.totalUsers || 0,
+      activeToday: data.activeToday || 0,
+      aiRequests: data.aiRequests || 0,
+      serverStatus: data.serverStatus || 'online',
+      lastBackup: data.lastBackup || Date.now(),
     });
   }
 
