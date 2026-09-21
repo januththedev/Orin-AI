@@ -79,15 +79,7 @@ async function assertIdentifiersFree(emailNorm, phoneNorm) {
   const snaps = await Promise.all(keys.map(k => sdocGet('auth_identifiers', k.key)));
   for (let i = 0; i < snaps.length; i++) {
     if (!snaps[i].exists) continue;
-    const claimedUid = String(snaps[i].data().uid);
-    // Google-created accounts have no password credential yet — tell the
-    // user to sign in with Google once, then add a password in settings.
-    const googleOnly = !(await hasPasswordCredential(claimedUid));
-    if (googleOnly) {
-      throw httpError(409, 'An Orin account with this ' + keys[i].label +
-        ' already exists via Google sign-in. Sign in with Google once, then add a password in Account Settings.');
-    }
-    throw httpError(409, 'An account with this ' + keys[i].label + ' already exists.');
+    throw httpError(409, 'An account with this ' + keys[i].label + ' already exists. Sign in instead.');
   }
 }
 

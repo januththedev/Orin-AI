@@ -4,10 +4,8 @@
  * method talks to our own Neon-backed API with an Orin session token:
  *
  *   - Password accounts → POST /api/auth/password (scrypt in Neon)
- *   - Google sign-in    → POST /api/auth/google {action:'signin'} (GIS token,
- *                         verified with Google, linked in Neon)
- *   - Session/profile   → POST /api/auth/session
- *   - History/memory    → /api/history
+ *   - Session/profile   → POST /api/me (sync)
+ *   - History/memory    → POST /api/me, GET /api/me
  *   - Admin             → POST /api/admin
  *
  * The session token + minimal profile live in localStorage (mobile-safe,
@@ -152,20 +150,7 @@ class SessionService {
     await this.authApi('set-password', { password });
   }
 
-  // ─── Google + session handoff ─────────────────────────────────────────────
-
-  /** Sign in from a Google Identity Services credential (verified server-side). */
-  async signInWithGoogle(credential: string): Promise<SessionUser | null> {
-    const res = await fetch('/api/auth/google', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'signin', credential }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Google sign-in failed.');
-    if (!data.sessionToken) throw new Error('Google sign-in failed. Try again.');
-    return this.storeSession(data.sessionToken, data.user || {});
-  }
+  // ─── Session handoff ──────────────────────────────────────────────────────
 
   /**
    * Adopt an already-minted Orin session token — used by the desktop

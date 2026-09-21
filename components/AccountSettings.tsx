@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { sessionService } from '../services/sessionService';
-import NeonSignIn from './NeonSignIn';
 import { UserAccount, Language } from '../types';
 import { translations } from '../translations';
 
@@ -78,6 +77,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
         await sessionService.registerWithPassword(name.trim(), identifier.trim(), phone.replace(/[\s()\-.]/g, ''), password);
         await finalizeSignIn();
       } else if (!resetToken) {
+        // Reset needs all three: name + email + phone must match the account.
         const token = await sessionService.requestPasswordReset(name.trim(), identifier.trim(), phone.replace(/[\s()\-.]/g, ''));
         setResetToken(token);
         setAuthMsg({ kind: 'ok', text: 'Verified. Now choose a new password.' });
@@ -88,7 +88,20 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
         setAuthMsg({ kind: 'ok', text: 'Password updated. Sign in with your new password.' });
       }
     } catch (err: any) {
-      setAuthMsg({ kind: 'err', text: err?.message || 'Something went wrong. Try again.' });
+      const msg = err?.message || 'Something went wrong. Try again.';
+      if (authTab === 'login' && /invalid credentials/i.test(msg)) {
+        // Wrong password (or unknown account) — drop straight into reset,
+        // no dead-end error. Name + phone confirm ownership there.
+        setAuthTab('reset');
+        setResetToken(null);
+        setAuthMsg({ kind: 'ok', text: 'That password didn\u2019t match. Enter your name and phone to reset it.' });
+      } else if (authTab === 'register' && /already exists/i.test(msg)) {
+        // Account exists — jump to sign-in with the email kept.
+        setAuthTab('login');
+        setAuthMsg({ kind: 'ok', text: 'You already have an account. Sign in below.' });
+      } else {
+        setAuthMsg({ kind: 'err', text: msg });
+      }
     } finally {
       setLoading(false);
     }
@@ -207,9 +220,9 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
                   <input className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="Full name" aria-label="Full name" autoComplete="name" required />
                 )}
                 <input className={inputCls} value={identifier} onChange={e => setIdentifier(e.target.value)}
-                  placeholder={authTab === 'register' ? 'Email address' : 'Email or phone'} aria-label="Email or phone"
+                  placeholder={authTab === 'reset' ? 'Email address' : authTab === 'register' ? 'Email address' : 'Email or phone'} aria-label="Email or phone"
                   autoComplete="username" required />
-                {authTab === 'register' && (
+                {(authTab === 'register' || authTab === 'reset') && (
                   <input className={inputCls} value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone (0771234567)" aria-label="Phone" autoComplete="tel" required />
                 )}
                 {(authTab === 'login' || authTab === 'register' || resetToken) && (
@@ -228,8 +241,6 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
                     : resetToken ? 'Set new password' : 'Find my account'}
                 </button>
               </form>
-
-              <NeonSignIn />
 
               {canBrowserLogin && (
                 <>
