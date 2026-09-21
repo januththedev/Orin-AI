@@ -397,8 +397,9 @@ export async function groqSearch(messages) {
   if (!keys.length) throw new Error('No Groq keys configured (set GROQ_API_KEY in Vercel).');
   const key = keys[Math.floor(Math.random() * keys.length)];
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 90_000);
+  const timer = setTimeout(() => ctrl.abort(), 60_000);
   try {
+    const cleaned = groqTextMessages(messages);
     const res = await fetch(GROQ_URL, {
       method: 'POST',
       signal: ctrl.signal,
@@ -406,13 +407,26 @@ export async function groqSearch(messages) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${key}`,
       },
-      body: JSON.stringify({ model: GROQ_SEARCH_MODEL, messages: groqTextMessages(messages) }),
+      body: JSON.stringify({
+        model: GROQ_SEARCH_MODEL,
+        messages: [
+          { role: 'system', content: 'Answer the user directly using the web search results. Never output tool-call syntax, placeholders, or your internal reasoning — only the final answer with key facts cited.' },
+          ...cleaned,
+        ],
+        // Web search only: skips code-execution detours (faster, no surprises).
+        compound_custom: { tools: { enabled_tools: ['web_search'] } },
+      }),
     });
     if (!res.ok) throw new Error(`Groq HTTP ${res.status}`);
     const json = await res.json().catch(() => ({}));
     const message = json.choices?.[0]?.message;
-    const text = (message?.content || '').trim();
-    if (!text) throw new Error('Empty Groq answer');
+    const raw = (message?.content || '').trim();
+    // Strip any leaked agentic-loop syntax ({% tool %}, {% args %}…) and
+    // validate: a leaked reasoning dump is short on substance — fall back
+    // to the OpenRouter plugin path instead of showing it.
+    const text = raw.replace(/{%[\s\S]*?%}/g, '').replace(/\n{3,}/g, '\n\n').trim();
+    const leaked = /{%\s*(tool|args|endargs|endtool)/.test(raw);
+    if (!text || (leaked && text.length < 60)) throw new Error('Groq returned tool syntax, not an answer');
     return { text, links: groqLinksFrom(message), model: GROQ_SEARCH_MODEL, via: 'groq' };
   } finally {
     clearTimeout(timer);
