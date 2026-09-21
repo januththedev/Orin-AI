@@ -286,11 +286,13 @@ async function handler(req, res) {
     messages.push({ role: 'user', content: currentContent });
 
     const wantThinking = Boolean(thinkingFlag ?? useThinking);
-    // Web search: intent-detected (or forced with `search:`). First choice is
-    // Groq compound-mini (built-in search, decides server-side, free tier);
-    // without a GROQ_API_KEY — or if Groq fails — the OpenRouter web plugin
-    // path below is used instead. Citations come back as `links`.
-    const search = searchIntent(typeof currentContent === 'string' ? currentContent : prompt);
+    // Web search: PAUSED by default (ORIN_WEBSEARCH=on re-enables Groq +
+    // OpenRouter plugin). The orin-search microservice (SearXNG-compatible,
+    // separate repo) will replace both — see docs/SEARCH.md.
+    const webEnabled = process.env.ORIN_WEBSEARCH === 'on';
+    const search = webEnabled
+      ? searchIntent(typeof currentContent === 'string' ? currentContent : prompt)
+      : null;
     if (search && typeof currentContent === 'string') currentContent = search.clean;
     else if (search && Array.isArray(currentContent) && currentContent[0]?.text) {
       currentContent[0].text = String(currentContent[0].text).replace(SEARCH_PREFIX, '');

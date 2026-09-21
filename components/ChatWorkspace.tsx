@@ -409,7 +409,7 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
                 {isPrivate ? 'Private chat' : 'How can I help?'}
               </h1>
               <p className="mt-2 text-sm text-stone-500 dark:text-stone-400 max-w-sm">
-                Ask anything — fresh answers search the web automatically. Switch on <span className="font-bold text-cyan-600 dark:text-cyan-300">Image</span> below to create pictures.
+                Ask anything. Switch on <span className="font-bold text-cyan-600 dark:text-cyan-300">Image</span> below to create pictures.
               </p>
               {!isPrivate && (
                 <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
@@ -585,9 +585,6 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
                 >
                   <i className="fa-solid fa-align-left text-[10px]" aria-hidden /> Detailed
                 </button>
-                <span className="hidden sm:inline-flex items-center gap-1 px-1 text-[9px] font-bold uppercase tracking-widest text-stone-400/80">
-                  <i className="fa-solid fa-globe text-[9px]" aria-hidden /> auto web search
-                </span>
               </div>
             )}
             <textarea

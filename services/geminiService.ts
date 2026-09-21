@@ -1,5 +1,4 @@
 
-import { GoogleGenAI, Modality } from "@google/genai";
 import { Language, GroundingLink, AspectRatio, ImageSize, UserAccount, ChatMessage, Conversation, WorkspaceMode, MathExtractResult, MathOperation } from "../types";
 import { sessionService } from "./sessionService";
 import { cacheService, CacheKey } from "./cacheService";
@@ -143,29 +142,6 @@ export class GeminiService {
     if (plan === 'pro' || plan === 'pro_yearly') return 20;
     if (plan === 'basic' || plan === 'basic_yearly') return 10;
     return 5;
-  }
-
-  private async getApiKey(): Promise<string> {
-    const envKey = process.env.API_KEY;
-    if (envKey && envKey.trim()) return envKey.trim();
-    if (typeof window !== 'undefined' && (window as any).aistudio) {
-      const hasKey = await (window as any).aistudio.hasSelectedApiKey?.();
-      if (hasKey) {
-        const key = await (window as any).aistudio.getApiKey?.();
-        if (key) return key;
-      }
-      await (window as any).aistudio.openSelectKey?.();
-    }
-    throw new AppError("API Key required. Add your Gemini API key in environment or AI Studio.", 'auth');
-  }
-
-  private async checkApiKey(): Promise<boolean> {
-    try {
-      await this.getApiKey();
-      return true;
-    } catch {
-      return false;
-    }
   }
 
   /** Context window size by plan (last N messages). Matches pricing: Free=5, Basic=10, Pro=20. */
@@ -503,124 +479,6 @@ export class GeminiService {
       return { type: 'unknown', expression: text || '', latexExpression: '', variable: 'x', operation: 'solve', extraValues: {}, confidence: 0, unreadable: true };
     }
   }
-
-  /** Default voice persona for Live sessions when no explicit instruction is provided. */
-  private getVoiceSystemInstruction(tone: string = 'neutral', sessionContext?: string): string {
-    const base = `You are Orin AI, a friendly voice assistant. Reply in the SAME language the user speaks (Sinhala, Tamil, or English). Keep spoken answers short and natural — no markdown, no lists, no emojis.`;
-    return `${base}\nTone: ${tone}.${sessionContext ? `\nContext: ${sessionContext}` : ''}`;
-  }
-
-  async connectLive(callbacks: any, config: any) {
-    const apiKey = await this.getApiKey();
-    const ai = new GoogleGenAI({ apiKey });
-    const systemInstruction = config.systemInstruction != null
-      ? config.systemInstruction
-      : this.getVoiceSystemInstruction(config.tone || 'neutral', config.sessionContext);
-    const liveConfig = {
-      responseModalities: [Modality.AUDIO],
-      speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: config.voiceName || 'Zephyr' } } },
-      systemInstruction,
-      realtimeInputConfig: {
-        automaticActivityDetection: {
-          startOfSpeechSensitivity: 'START_SENSITIVITY_HIGH' as any,
-          endOfSpeechSensitivity: 'END_SENSITIVITY_HIGH' as any,
-          silenceDurationMs: 600,
-          prefixPaddingMs: 250,
-        },
-      },
-    };
-    const liveConfigWithTools = { ...liveConfig, tools: [{ googleSearch: {} }] };
-    const model = 'gemini-2.5-flash-native-audio-preview-12-2025';
-    return ai.live.connect({ model, callbacks, config: liveConfigWithTools });
-  }
-
-  async connectTranslator(callbacks: any, options: any) {
-    return this.connectLive(callbacks, {
-      voiceName: 'Zephyr',
-      systemInstruction: `You are a real-time interpreter between ${options.source} and ${options.target}.
-Detect the language automatically and translate to the other language.
-Output ONLY the translation — no commentary, greetings, or explanations.`,
-    });
-  }
-
-  async connectMultimodal(callbacks: any, config: any) {
-    return this.connectLive(callbacks, {
-      voiceName: config.voiceName || 'Zephyr',
-      systemInstruction: `${getToneInstruction(config.tone || 'neutral')}
-You are processing a live video feed. CRITICAL RULES:
-1. LANGUAGE: Always reply in the same language the user speaks — Sinhala, Tamil, or English.
-2. SPEED: Give instant, short answers (1–2 sentences max). Don't wait to accumulate context.
-3. VISION: When describing what you see, be immediate and specific. Don't hedge.
-4. NOISE: Ignore background noise. Only respond to directed speech from the user.`,
-    });
-  }
-
-    /** Voice-to-math: same connectLive flow, system instruction asks for LaTeX-only output. */
-  async connectLiveMath(callbacks: any) {
-    return this.connectLive(callbacks, {
-      systemInstruction: `You are a math speech-to-LaTeX converter. The user will speak a mathematical expression or equation in plain English (e.g. "x squared plus 5x minus 6 equals zero"). Respond with ONLY the LaTeX equivalent, nothing else. No explanation, no words—just the raw LaTeX. Examples: "x squared plus 1" -> x^2+1, "five x minus two equals zero" -> 5x-2=0, "square root of 2" -> \\sqrt{2}. Output only valid LaTeX.`,
-    });
-  }
-
-  /** Separate client for Lyria (needs v1alpha). */
-  private getMusicClient(apiKey: string) {
-    return new GoogleGenAI({ apiKey, apiVersion: 'v1alpha' });
-  }
-
-  /**
-   * Lyria RealTime music session. Opens WebSocket, sets prompt and config, starts playback, returns session for steering.
-   *
-   * Gotcha (Node/Cloud Functions): If you move this to a backend, the SDK's receive-style API can block until
-   * a required number of chunks are met, so you won't be able to send new prompts or config updates while receiving.
-   * In the browser this is fine because callbacks are async; in Node.js use a non-blocking/event-driven pattern.
-   */
-  async connectMusicSession(
-    prompt: string,
-    config: {
-      bpm?: number;
-      density?: number;
-      brightness?: number;
-      scale?: string;
-    },
-    callbacks: {
-      onAudioChunk: (data: string) => void;
-      onError: (e: unknown) => void;
-      onClose: () => void;
-    }
-  ) {
-    const apiKey = await this.getApiKey();
-    const ai = this.getMusicClient(apiKey);
-
-    const session = await ai.live.music.connect({
-      model: 'models/lyria-realtime-exp',
-      callbacks: {
-        onmessage: (msg: { serverContent?: { audioChunks?: { data?: string }[] } }) => {
-          const chunks = msg.serverContent?.audioChunks ?? [];
-          for (const chunk of chunks) {
-            if (chunk.data) callbacks.onAudioChunk(chunk.data);
-          }
-        },
-        onerror: callbacks.onError,
-        onclose: callbacks.onClose,
-      },
-    });
-
-    await session.setWeightedPrompts({
-      weightedPrompts: [{ text: prompt, weight: 1.0 }],
-    });
-
-    await session.setMusicGenerationConfig({
-      musicGenerationConfig: {
-        bpm: config.bpm ?? 120,
-        density: config.density ?? 0.5,
-        brightness: config.brightness ?? 0.5,
-        scale: (config.scale ?? 'SCALE_UNSPECIFIED') as any,
-      },
-    });
-
-    await session.play();
-    return session;
-    }
 
   /**
    * Dedicated math solver with Symbolab-style system instruction.
