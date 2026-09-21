@@ -395,15 +395,15 @@ export class GeminiService {
     }
   }
 
-  /** Gemini TTS: single- or multi-speaker. Returns base64-encoded 24kHz mono 16-bit PCM. */
+  /** Fish Audio S2.1 Pro Free via OpenRouter (mp3) with Gemini fallback. Returns audio + mime. */
   async generateTts(options: {
     text: string;
     stylePrompt?: string;
     voiceName?: string;
     multiSpeaker?: { speaker: string; voiceName: string }[];
     model?: 'flash' | 'pro';
-  }): Promise<string> {
-    const { text, stylePrompt, voiceName = 'Kore', multiSpeaker, model = 'flash' } = options;
+  }): Promise<{ audioBase64: string; mime: string }> {
+    const { text, stylePrompt } = options;
     if (!text.trim()) throw new AppError("No text to speak.", 'generic');
 
     let idToken: string | null = null;
@@ -411,12 +411,12 @@ export class GeminiService {
     const r = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
-      body: JSON.stringify({ mode: 'tts', text, stylePrompt, voiceName, multiSpeaker }),
+      body: JSON.stringify({ mode: 'tts', text, stylePrompt }),
     });
     if (!r.ok) throw new AppError((await r.json().catch(() => ({}))).error || 'TTS failed', 'generic');
     const d = await r.json();
     if (!d.audioBase64) throw new AppError('No audio generated.', 'generic');
-    return d.audioBase64;
+    return { audioBase64: d.audioBase64, mime: d.mime || 'audio/mpeg' };
   }
 
   private async updateMemoryFromExchange(uid: string, previousMemory: string, userPrompt: string, assistantReply: string): Promise<void> {

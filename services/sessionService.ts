@@ -25,6 +25,17 @@ export interface SessionUser {
 const TOKEN_KEY = 'orin_session_token';
 const PROFILE_KEY = 'orin_session_user';
 
+/** Fetches can never hang boot/sync forever — 20s hard timeout. */
+async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 20000): Promise<Response> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await window.fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 type AuthListener = (user: SessionUser | null) => void;
 
 function readToken(): string {
@@ -107,7 +118,7 @@ class SessionService {
   /** POST /api/auth/password with the caller's Bearer token (for set-password). */
   private async authApi(action: string, body: Record<string, unknown>): Promise<any> {
     const token = readToken();
-    const res = await fetch('/api/auth/password', {
+    const res = await fetchWithTimeout('/api/auth/password', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -158,7 +169,7 @@ class SessionService {
    */
   async signInWithSession(sessionToken: string): Promise<SessionUser | null> {
     if (!sessionToken) throw new Error('Sign-in failed. Try again.');
-    const res = await fetch('/api/me', {
+    const res = await fetchWithTimeout('/api/me', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
       body: JSON.stringify({ action: 'sync' }),
@@ -173,7 +184,7 @@ class SessionService {
     const token = readToken();
     if (!token) throw new Error('Not signed in');
     const profile = readProfile();
-    const res = await fetch('/api/me', {
+    const res = await fetchWithTimeout('/api/me', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -192,7 +203,7 @@ class SessionService {
 
   private async historyApi(action: string, body: Record<string, unknown> = {}): Promise<any> {
     const token = readToken();
-    const res = await fetch('/api/me', {
+    const res = await fetchWithTimeout('/api/me', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -207,7 +218,7 @@ class SessionService {
 
   private async historyGet(): Promise<{ history: any[] | null; memory: string }> {
     const token = readToken();
-    const res = await fetch('/api/me', {
+    const res = await fetchWithTimeout('/api/me', {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     });
     const data = await res.json().catch(() => ({}));
@@ -289,7 +300,7 @@ class SessionService {
   /** POST /api/admin with the caller's session token. */
   private async adminApi(action: string, body: Record<string, unknown>): Promise<any> {
     const token = readToken();
-    const res = await fetch('/api/admin', {
+    const res = await fetchWithTimeout('/api/admin', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

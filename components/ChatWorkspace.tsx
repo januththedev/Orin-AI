@@ -210,6 +210,8 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
   const [chatError, setChatError] = useState<string | null>(null);
   const [artifact, setArtifact] = useState<Artifact | null>(null);
   const [openThinking, setOpenThinking] = useState<Record<string, boolean>>({});
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -338,6 +340,32 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
     setPrivateMessages([]);
   };
 
+  const stopSpeaking = () => {
+    try { audioRef.current?.pause(); } catch {}
+    audioRef.current = null;
+    setSpeakingId(null);
+  };
+
+  // Read an answer aloud (Fish Audio voice via /api/chat tts).
+  const speakMessage = async (msg: ChatMessage) => {
+    if (speakingId === msg.id) { stopSpeaking(); return; }
+    stopSpeaking();
+    setSpeakingId(msg.id);
+    try {
+      const plain = String(msg.content || '').replace(/[*_`#>\[\]()]/g, '').slice(0, 4000);
+      const { audioBase64, mime } = await geminiService.generateTts({ text: plain });
+      const audio = new Audio(`data:${mime};base64,${audioBase64}`);
+      audioRef.current = audio;
+      audio.onended = () => setSpeakingId((cur) => (cur === msg.id ? null : cur));
+      audio.onerror = () => setSpeakingId((cur) => (cur === msg.id ? null : cur));
+      await audio.play();
+    } catch {
+      setSpeakingId(null);
+    }
+  };
+
+  useEffect(() => () => { try { audioRef.current?.pause(); } catch {} }, []);
+
   return (
     <div className="flex flex-col h-full min-h-0 relative">
       {/* Slim header */}
@@ -414,8 +442,22 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
                       : 'bg-white dark:bg-stone-900 text-stone-800 dark:text-stone-200 border-black/[0.05] dark:border-white/[0.06] rounded-bl-md shadow-sm'
                   }`}>
                     <MessageContent content={msg.content} isUser={msg.role === 'user'} />
-                    {msg.role === 'assistant' && (!!msg.thinking || msg.searched) && (
+                    {msg.role === 'assistant' && (!!msg.thinking || msg.searched || msg.type === 'text') && (
                       <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                        {msg.type === 'text' && !!msg.content && (
+                          <button
+                            onClick={() => void speakMessage(msg)}
+                            title={speakingId === msg.id ? 'Stop reading' : 'Read aloud'}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-colors ${
+                              speakingId === msg.id
+                                ? 'border-cyan-500 bg-cyan-500/15 text-cyan-700 dark:text-cyan-300'
+                                : 'border-stone-300/50 dark:border-white/10 text-stone-400 hover:text-stone-700 dark:hover:text-stone-100 hover:border-cyan-500/40'
+                            }`}
+                          >
+                            <i className={`fa-solid ${speakingId === msg.id ? 'fa-stop' : 'fa-volume-high'} text-[8px]`} aria-hidden />
+                            {speakingId === msg.id ? 'Stop' : 'Listen'}
+                          </button>
+                        )}
                         {msg.searched && (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-sky-500/40 text-sky-700 dark:text-sky-300 bg-sky-500/10">
                             <i className="fa-solid fa-globe text-[8px]" aria-hidden /> Searched the web

@@ -191,6 +191,8 @@ const App: React.FC = () => {
   // applyUser lives further down (needs mergeHistory); effects run after render,
   // so we reach it through a ref to keep this subscription early.
   const applyUserRef = useRef<(authUser: AuthUserLike) => Promise<void>>(async () => {});
+  const initializedRef = useRef(false);
+  const markInitialized = () => { initializedRef.current = true; setAuthInitialized(true); };
 
   useEffect(() => {
     const safetyTimeout = setTimeout(() => {
@@ -198,9 +200,19 @@ const App: React.FC = () => {
         // Allow the app to render as guest and surface a clear message instead of
         // leaving the user on an endless spinner with no explanation.
         setAuthError('Taking longer than usual to connect. Showing guest view while we finish signing you in.');
-        setAuthInitialized(true);
+        markInitialized();
       }
     }, AUTH_TIMEOUT_MS);
+
+    // HARD watchdog — never cleared early. If anything above (slow network,
+    // a hung request, a thrown error) still hasn't initialized the app after
+    // 35s, force guest view with a retry option. The spinner can NEVER stick.
+    const hardTimeout = setTimeout(() => {
+      if (!initializedRef.current) {
+        setAuthError('Still having trouble reaching the server. Your chats on this device are safe — retry when ready.');
+        markInitialized();
+      }
+    }, AUTH_TIMEOUT_MS + 10000);
 
     // Subscribe IMMEDIATELY on mount — the stored session resolves locally,
     // so the user-restored event is never missed (no more infinite loading).
@@ -231,7 +243,7 @@ const App: React.FC = () => {
         geminiService.logout();
         // Clear stale guest caches so iOS doesn't serve old auth state from SW cache
         clearGuestCaches();
-        setAuthInitialized(true);
+        markInitialized();
       }
     });
 
@@ -244,6 +256,7 @@ const App: React.FC = () => {
     return () => {
       unsubscribe?.();
       clearTimeout(safetyTimeout);
+      clearTimeout(hardTimeout);
     };
   }, []);
 
@@ -474,7 +487,7 @@ const App: React.FC = () => {
       setUser(fallbackUser);
       setSyncStatus('error');
     }
-    setAuthInitialized(true);
+    markInitialized();
     setAuthError(null);
   }, [mergeHistory]);
 
@@ -566,12 +579,21 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     if (!authInitialized) return (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-6">
+      <div className="flex h-full w-full flex-col items-center justify-center gap-6 px-6 text-center">
          <div className="relative">
             <div className="w-16 h-16 rounded-full border-2 border-cyan-500/20 border-t-cyan-500 animate-spin"></div>
             <img src="/favicon.svg" alt="" className="absolute inset-0 m-auto w-7 h-7" />
          </div>
          <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest animate-pulse">Warming up…</p>
+         {authError && (
+           <>
+             <p className="text-xs text-stone-500 dark:text-stone-400 max-w-xs">{authError}</p>
+             <button onClick={() => window.location.reload()}
+               className="px-6 py-3 rounded-xl bg-cyan-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-cyan-500">
+               Retry
+             </button>
+           </>
+         )}
       </div>
     );
 

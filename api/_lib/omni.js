@@ -54,9 +54,12 @@ export function pool(prefix, legacyVars = []) {
 
 export const PROVIDER_POOLS = {
   openrouter: () => pool('OPENROUTER', ['OPENROUTER_KEYS', 'OPENROUTER_API_KEY']),
+  groq: () => pool('GROQ', ['GROQ_API_KEY']),
 };
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_SEARCH_MODEL = process.env.GROQ_SEARCH_MODEL || 'groq/compound-mini';
 
 /** Last-good live selection, snapshotted to /tmp so a catalog outage falls
  * back to the most recent real ranking — never to a hardcoded model. */
@@ -346,6 +349,71 @@ async function attempt(key, model, messages, wantThinking, extra = {}) {
     return { ok: true, text, thinking, message };
   } catch {
     return { ok: false, action: 'retry' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Groq web search (groq/compound-mini): the model decides server-side when
+ * to search and returns automatic citations. Used for freshness-intent chat
+ * when GROQ_API_KEY is set — cheaper and faster than the OpenRouter web
+ * plugin, and Groq's free tier covers it. Falls back to the OpenRouter
+ * plugin path (caller-side) on any failure.
+ *
+ * Groq messages must be plain text parts — image/data parts are dropped
+ * (their text is kept).
+ */
+export function groqTextMessages(messages) {
+  return (messages || []).map((m) => {
+    let content = m?.content;
+    if (Array.isArray(content)) {
+      content = content
+        .map((p) => (typeof p === 'string' ? p : p?.text || ''))
+        .filter(Boolean)
+        .join('\n');
+    }
+    return { role: m?.role === 'assistant' || m?.role === 'system' ? m.role : 'user', content: String(content || '') };
+  }).filter((m) => m.content);
+}
+
+function groqLinksFrom(message) {
+  const out = [];
+  const tools = message?.executed_tools;
+  if (!Array.isArray(tools)) return out;
+  for (const t of tools) {
+    const results = t?.search_results;
+    if (!Array.isArray(results)) continue;
+    for (const r of results) {
+      const url = r?.url || r?.link;
+      if (url) out.push({ uri: url, title: r?.title || url });
+    }
+  }
+  return out;
+}
+
+export async function groqSearch(messages) {
+  const keys = PROVIDER_POOLS.groq();
+  if (!keys.length) throw new Error('No Groq keys configured (set GROQ_API_KEY in Vercel).');
+  const key = keys[Math.floor(Math.random() * keys.length)];
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 90_000);
+  try {
+    const res = await fetch(GROQ_URL, {
+      method: 'POST',
+      signal: ctrl.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({ model: GROQ_SEARCH_MODEL, messages: groqTextMessages(messages) }),
+    });
+    if (!res.ok) throw new Error(`Groq HTTP ${res.status}`);
+    const json = await res.json().catch(() => ({}));
+    const message = json.choices?.[0]?.message;
+    const text = (message?.content || '').trim();
+    if (!text) throw new Error('Empty Groq answer');
+    return { text, links: groqLinksFrom(message), model: GROQ_SEARCH_MODEL, via: 'groq' };
   } finally {
     clearTimeout(timer);
   }

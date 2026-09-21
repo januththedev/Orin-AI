@@ -24,7 +24,7 @@ import { verifyUser, httpError } from './_lib/auth.js';
 import { sdocGet, sdocUpdate, sincr, TS } from './_lib/store.js';
 import { apiHandler } from './_lib/http.js';
 import { GoogleGenAI } from '@google/genai';
-import { PROVIDER_POOLS, chainFor, resolveChain, route } from './_lib/omni.js';
+import { PROVIDER_POOLS, chainFor, resolveChain, route, groqSearch } from './_lib/omni.js';
 
 export const config = { maxDuration: 120 };
 
@@ -286,14 +286,15 @@ async function handler(req, res) {
     messages.push({ role: 'user', content: currentContent });
 
     const wantThinking = Boolean(thinkingFlag ?? useThinking);
-    // Web search: intent-detected (or forced with `search:`). Citations come
-    // back as annotations → links, rendered under the answer.
+    // Web search: intent-detected (or forced with `search:`). First choice is
+    // Groq compound-mini (built-in search, decides server-side, free tier);
+    // without a GROQ_API_KEY — or if Groq fails — the OpenRouter web plugin
+    // path below is used instead. Citations come back as `links`.
     const search = searchIntent(typeof currentContent === 'string' ? currentContent : prompt);
     if (search && typeof currentContent === 'string') currentContent = search.clean;
     else if (search && Array.isArray(currentContent) && currentContent[0]?.text) {
       currentContent[0].text = String(currentContent[0].text).replace(SEARCH_PREFIX, '');
     }
-    const webExtra = search ? { plugins: [{ id: 'web', max_results: 5 }] } : {};
     if (search) {
       systemInstruction += `\n\nLIVE WEB SEARCH IS ON for this reply: web results are appended to the conversation. Use them for anything time-sensitive, cite key facts inline, and prefer them over training data for current events.`;
     }
@@ -302,14 +303,26 @@ async function handler(req, res) {
     const { chain, pinned } = await resolveChain({ model: requestedModel, thinking: wantThinking });
     let result = null;
     let lastErr = null;
-    try {
-      result = await route(chain, messages, {
-        wantThinking,
-        extra: webExtra,
-        onAttempt: ({ model, keyLast4, ok }) =>
-          console.log(`[api/chat] omni ${ok ? 'ok' : 'fail'} model=${model} key=…${keyLast4}`),
-      });
-    } catch (e) { lastErr = e; }
+    if (search) {
+      try {
+        const g = await groqSearch(messages);
+        result = { text: g.text, thinking: '', model: g.model, links: g.links };
+        console.log('[api/chat] search via=groq');
+      } catch (e) {
+        console.log('[api/chat] groq search unavailable, OpenRouter plugin fallback:', e.message);
+      }
+    }
+    if (!result) {
+      const webExtra = search ? { plugins: [{ id: 'web', max_results: 5 }] } : {};
+      try {
+        result = await route(chain, messages, {
+          wantThinking,
+          extra: webExtra,
+          onAttempt: ({ model, keyLast4, ok }) =>
+            console.log(`[api/chat] omni ${ok ? 'ok' : 'fail'} model=${model} key=…${keyLast4}`),
+        });
+      } catch (e) { lastErr = e; }
+    }
     if (!result) throw lastErr || new Error('No response');
 
     const text = (result.text || "").trim();
@@ -446,24 +459,63 @@ async function handleVideoGen(req, res, uid) {
   }
 }
 
-// ── TTS (Gemini) ─────────────────────────────────────────────────────────────
+// ── TTS (Fish Audio S2.1 Pro Free via OpenRouter — 83 languages, free) ──────
+// POST https://openrouter.ai/api/v1/audio/speech → raw mp3 bytes.
+// Candidate ids tried in order (env override first); Gemini TTS is the last
+// resort so voice never hard-fails. Returns { audioBase64, mime }.
+const TTS_CANDIDATES = [
+  (process.env.TTS_MODEL || '').trim(),
+  'fish-audio/s2.1-pro-free:free',
+  'fish-audio/s2.1-pro-free',
+  'fish-audio/s2.1-pro',
+].filter(Boolean);
+
 async function handleTts(req, res) {
-  const { text, stylePrompt, voiceName = 'Kore', multiSpeaker } = req.body || {};
+  const { text, stylePrompt } = req.body || {};
   if (!text?.trim()) throw httpError(400, 'No text to speak');
+  const keys = PROVIDER_POOLS.openrouter();
+  const input = String(stylePrompt?.trim() ? `${stylePrompt.trim()}\n\n${text.trim()}` : text.trim()).slice(0, 4000);
+  if (keys.length) {
+    for (const model of TTS_CANDIDATES) {
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 90_000);
+        let r;
+        try {
+          r = await fetch('https://openrouter.ai/api/v1/audio/speech', {
+            method: 'POST',
+            signal: ctrl.signal,
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${keys[Math.floor(Math.random() * keys.length)]}`,
+              'HTTP-Referer': 'https://orinai.org',
+              'X-Title': 'Orin AI',
+            },
+            body: JSON.stringify({ model, input, response_format: 'mp3' }),
+          });
+        } finally {
+          clearTimeout(timer);
+        }
+        if (!r.ok) continue;
+        const buf = Buffer.from(await r.arrayBuffer());
+        if (buf.length < 1000) continue;
+        return res.status(200).json({ audioBase64: buf.toString('base64'), mime: 'audio/mpeg', engine: model });
+      } catch {
+        // next candidate
+      }
+    }
+  }
+  // Last resort: Gemini TTS (needs GEMINI_API_KEY).
   try {
     const ai = gemini();
-    const promptText = stylePrompt?.trim() ? `${stylePrompt.trim()}\n\n${text.trim()}` : text.trim();
-    const speechConfig = multiSpeaker?.length
-      ? { multiSpeakerVoiceConfig: { speakerVoiceConfigs: multiSpeaker.map(({ speaker, voiceName: v }) => ({ speaker, voiceConfig: { prebuiltVoiceConfig: { voiceName: v } } })) } }
-      : { voiceConfig: { prebuiltVoiceConfig: { voiceName } } };
     const r = await ai.models.generateContent({
       model: 'gemini-2.5-flash-preview-tts',
-      contents: [{ role: 'user', parts: [{ text: promptText }] }],
-      config: { responseModalities: ['AUDIO'], speechConfig },
+      contents: [{ role: 'user', parts: [{ text: input }] }],
+      config: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } },
     });
     const data = r.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (!data) throw httpError(502, 'No audio generated');
-    return res.status(200).json({ audioBase64: data });
+    return res.status(200).json({ audioBase64: data, mime: 'audio/pcm;rate=24000', engine: 'gemini-tts' });
   } catch (err) {
     if (err.code) throw err;
     throw httpError(500, 'TTS failed');
