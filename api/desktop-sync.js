@@ -2,9 +2,10 @@
  * GET  /api/desktop-sync — caller's desktop sync blob (or nulls if none).
  * PUT  /api/desktop-sync — replaces it. Body: { blob: object, schemaVersion? } ≤ 512 KB.
  * Auth: Firebase ID token via _lib/firebase requireUser.
- * Storage: Firestore collection `desktop_sync`, doc id = uid. Last-write-wins v1.
+ * Storage: Neon `desktop_sync` docs, id = uid. Last-write-wins v1.
  */
-import { db, TS, requireUser, httpError } from './_lib/firebase.js';
+import { requireUser, httpError } from './_lib/firebase.js';
+import { sdocGet, sdocSet, TS } from './_lib/store.js';
 import { apiHandler } from './_lib/http.js';
 
 export const config = { maxDuration: 15 };
@@ -14,10 +15,9 @@ const MAX_BYTES = 512 * 1024;
 async function handler(req, res) {
   const decoded = await requireUser(req);
   const uid = decoded.uid;
-  const ref = db().collection('desktop_sync').doc(uid);
 
   if (req.method === 'GET') {
-    const snap = await ref.get();
+    const snap = await sdocGet('desktop_sync', uid);
     if (!snap.exists) {
       return res.status(200).json({ blob: null, schemaVersion: null, updatedAt: null });
     }
@@ -38,7 +38,7 @@ async function handler(req, res) {
     if (serialized.length > MAX_BYTES) {
       throw httpError(413, `Sync payload too large (${serialized.length} > ${MAX_BYTES} bytes)`);
     }
-    await ref.set({
+    await sdocSet('desktop_sync', uid, {
       blob,
       schemaVersion: Number((req.body || {}).schemaVersion) || 1,
       sizeBytes: serialized.length,

@@ -15,7 +15,8 @@
  * Env: FIREBASE_SERVICE_ACCOUNT, ORIN_SECRET_CODE (optional signup bypass code).
  */
 import crypto from 'crypto';
-import { initAdmin, db, TS, requireUser, httpError } from './_lib/firebase.js';
+import { initAdmin, requireUser, httpError } from './_lib/firebase.js';
+import { sadd, sdocSet, TS } from './_lib/store.js';
 import { apiHandler } from './_lib/http.js';
 import { rateLimit } from './_lib/ratelimit.js';
 
@@ -24,7 +25,7 @@ export const config = { maxDuration: 60 };
 const VALID_ROLES = ['visitor', 'training', 'devops', 'owner'];
 
 function logAudit(action, actorUid, details) {
-  return db().collection('audit_logs').add({
+  return sadd('audit_logs', {
     action, actorUid, details, timestamp: TS(),
   }).catch(() => {}); // audit must never break the request
 }
@@ -48,7 +49,7 @@ async function handler(req, res) {
     const secretCode = process.env.ORIN_SECRET_CODE || '';
     const codeDetected = !!secretCode && String(reason || '').includes(secretCode);
 
-    await db().collection('pending_signups').doc(uid).set({
+    await sdocSet('pending_signups', uid, {
       uid,
       email,
       reason: String(reason || '').slice(0, 2000),
@@ -70,12 +71,12 @@ async function handler(req, res) {
     // 1. Custom claims are the real security boundary
     await initAdmin().auth().setCustomUserClaims(targetUid, { role });
     // 2. Profile doc for UI display
-    await db().collection('users').doc(targetUid).set({
+    await sdocSet('users', targetUid, {
       role, approved: !!approved, updatedAt: TS(),
-    }, { merge: true });
+    }, true);
     // 3. Update their request row (if any)
-    await db().collection('pending_signups').doc(targetUid)
-      .set({ status: approved ? 'approved' : 'rejected', decidedAt: TS() }, { merge: true });
+    await sdocSet('pending_signups', targetUid,
+      { status: approved ? 'approved' : 'rejected', decidedAt: TS() }, true);
 
     await logAudit('APPROVE_USER', uid, { targetUid, role, approved });
     return res.status(200).json({ success: true });
@@ -87,7 +88,7 @@ async function handler(req, res) {
     const note = String(req.body?.note || 'Generated Key').slice(0, 100);
     const rawKey = 'orin_' + crypto.randomBytes(24).toString('hex');
     const hash = crypto.createHash('sha256').update(rawKey).digest('hex');
-    await db().collection('api_keys').add({
+    await sadd('api_keys', {
       hash, note, createdBy: uid, enabled: true, createdAt: TS(),
     });
     await logAudit('GENERATE_KEY', uid, { note });

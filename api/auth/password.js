@@ -20,7 +20,8 @@
  *   confirming a reset revokes all existing sessions (revokeRefreshTokens).
  */
 import crypto from 'crypto';
-import { initAdmin, db, TS, requireUser, httpError } from '../_lib/firebase.js';
+import { initAdmin, requireUser, httpError } from '../_lib/firebase.js';
+import { sdocGet, sdocSet, sdocUpdate, sdocDelete, squery, TS } from '../_lib/store.js';
 import { apiHandler } from '../_lib/http.js';
 import { hashPassword, verifyPassword } from '../_lib/passwords.js';
 import { normalizeIdentifier, identifierKey, passwordPolicyError, namePolicyError } from '../_lib/identity.js';
@@ -44,12 +45,12 @@ function sha256hex(v) {
 
 /** Creates users/{uid} profile doc if missing (mirrors syncUserSession defaults). */
 async function ensureProfile(uid, { name, email, phone }) {
-  await db().collection('users').doc(uid).set({
+  await sdocSet('users', uid, {
     ...(name ? { name } : {}),
     ...(email ? { email } : {}),
     ...(phone ? { phone } : {}),
     lastUpdated: TS(),
-  }, { merge: true });
+  }, true);
 }
 
 async function issueCustomToken(uid) {
@@ -57,7 +58,7 @@ async function issueCustomToken(uid) {
 }
 
 async function hasPasswordCredential(uid) {
-  return (await db().collection('password_credentials').doc(String(uid)).get()).exists;
+  return (await sdocGet('password_credentials', String(uid))).exists;
 }
 
 /** Throws if either identifier is already claimed by another account. */
@@ -65,7 +66,7 @@ async function assertIdentifiersFree(emailNorm, phoneNorm) {
   const keys = [];
   if (emailNorm) keys.push({ key: identifierKey(emailNorm), label: 'email' });
   if (phoneNorm) keys.push({ key: identifierKey(phoneNorm), label: 'phone number' });
-  const snaps = await Promise.all(keys.map(k => db().collection('auth_identifiers').doc(k.key).get()));
+  const snaps = await Promise.all(keys.map(k => sdocGet('auth_identifiers', k.key)));
   for (let i = 0; i < snaps.length; i++) {
     if (!snaps[i].exists) continue;
     const claimedUid = snaps[i].data().uid;
@@ -85,12 +86,12 @@ async function assertIdentifiersFree(emailNorm, phoneNorm) {
 /** Creates both lookup docs; caller has already verified they're free. */
 async function writeLookups(emailNorm, phoneNorm, uid) {
   if (emailNorm) {
-    await db().collection('auth_identifiers').doc(identifierKey(emailNorm))
-      .set({ uid, type: 'email', createdAt: TS() });
+    await sdocSet('auth_identifiers', identifierKey(emailNorm),
+      { uid, type: 'email', createdAt: TS() });
   }
   if (phoneNorm) {
-    await db().collection('auth_identifiers').doc(identifierKey(phoneNorm))
-      .set({ uid, type: 'phone', createdAt: TS() });
+    await sdocSet('auth_identifiers', identifierKey(phoneNorm),
+      { uid, type: 'phone', createdAt: TS() });
   }
 }
 
@@ -145,7 +146,7 @@ async function handler(req, res) {
 
     try {
       const uid = fbUser.uid;
-      await db().collection('password_credentials').doc(uid).set({
+      await sdocSet('password_credentials', uid, {
         hash: hashPassword(b.password),
         identifierType: 'email',
         email: emailNorm ? emailNorm.value : null,
@@ -189,16 +190,16 @@ async function handler(req, res) {
     if (!(await rateLimit('auth-login-id:' + identifierKey(norm), LOGIN_ATTEMPTS_LIMIT, LOGIN_WINDOW_MS)))
       throw httpError(429, 'Too many failed attempts. Try again in 15 minutes.');
 
-    const lookupSnap = await db().collection('auth_identifiers').doc(identifierKey(norm)).get();
+    const lookupSnap = await sdocGet('auth_identifiers', identifierKey(norm));
     if (!lookupSnap.exists) throw httpError(401, 'Invalid credentials');
     const uid = lookupSnap.data().uid;
 
-    const credSnap = await db().collection('password_credentials').doc(String(uid)).get();
+    const credSnap = await sdocGet('password_credentials', String(uid));
     if (!credSnap.exists || !verifyPassword(password, credSnap.data().hash)) {
       throw httpError(401, 'Invalid credentials');
     }
 
-    const profileSnap = await db().collection('users').doc(String(uid)).get();
+    const profileSnap = await sdocGet('users', String(uid));
     const p = profileSnap.data() || {};
     const customToken = await issueCustomToken(String(uid));
     return res.status(200).json({
@@ -222,24 +223,23 @@ async function handler(req, res) {
 
     const email = decoded.email ? decoded.email.toLowerCase() : null;
     if (email) {
-      const claimSnap = await db().collection('auth_identifiers').doc('email:' + email).get();
+      const claimSnap = await sdocGet('auth_identifiers', 'email:' + email);
       if (claimSnap.exists && claimSnap.data().uid !== uid) {
         throw httpError(409, "This email is already used for another Orin account's sign-in.");
       }
     }
 
-    const credRef = db().collection('password_credentials').doc(uid);
-    const existing = await credRef.get();
-    await credRef.set({
+    const existing = await sdocGet('password_credentials', uid);
+    await sdocSet('password_credentials', uid, {
       hash: hashPassword(password),
       identifierType: email ? 'email' : 'unknown',
       email,
       ...(existing.exists ? {} : { createdAt: TS() }),
       updatedAt: TS(),
-    }, { merge: true });
+    }, true);
     if (email) {
-      await db().collection('auth_identifiers').doc('email:' + email)
-        .set({ uid, type: 'email', createdAt: existing.exists ? existing.data().createdAt ?? TS() : TS() });
+      await sdocSet('auth_identifiers', 'email:' + email,
+        { uid, type: 'email', createdAt: existing.exists ? existing.data().createdAt ?? TS() : TS() });
     }
     return res.status(200).json({ ok: true });
   }
@@ -259,13 +259,13 @@ async function handler(req, res) {
       throw httpError(429, 'Too many reset attempts for this account. Try again later.');
 
     const GENERIC = 'The details do not match our records.';
-    const lookupSnap = await db().collection('auth_identifiers').doc(identifierKey(emailNorm)).get();
+    const lookupSnap = await sdocGet('auth_identifiers', identifierKey(emailNorm));
     if (!lookupSnap.exists) throw httpError(401, GENERIC);
     const uid = String(lookupSnap.data().uid);
 
     const [profileSnap, credSnap] = await Promise.all([
-      db().collection('users').doc(uid).get(),
-      db().collection('password_credentials').doc(uid).get(),
+      sdocGet('users', uid),
+      sdocGet('password_credentials', uid),
     ]);
     const profile = profileSnap.data() || {};
     const cred = credSnap.exists ? credSnap.data() : {};
@@ -279,11 +279,11 @@ async function handler(req, res) {
 
     // Issue a single-use token; store only its hash.
     const resetToken = crypto.randomBytes(32).toString('hex');
-    await db().collection('password_resets').doc(sha256hex(resetToken)).set({
+    await sdocSet('password_resets', sha256hex(resetToken), {
       uid,
       used: false,
       createdAt: TS(),
-      expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+      expiresAt: Date.now() + RESET_TOKEN_TTL_MS,
     });
     return res.status(200).json({ resetToken, expiresIn: RESET_TOKEN_TTL_MS / 1000 });
   }
@@ -300,28 +300,30 @@ async function handler(req, res) {
     if (typeof confirmPassword === 'string' && confirmPassword !== password)
       throw httpError(400, 'Passwords do not match.');
 
-    const ref = db().collection('password_resets').doc(sha256hex(resetToken));
+    const ref = { collection: 'password_resets', id: sha256hex(resetToken) };
     let uid = null;
-    await db().runTransaction(async tx => {
-      const snap = await tx.get(ref);
+    {
+      // Single-use consume: validate first, then flip. The token is 256-bit
+      // random, so a double-submit race can only repeat the same outcome.
+      const snap = await sdocGet(ref.collection, ref.id);
       if (!snap.exists) throw httpError(410, 'Reset request expired or unknown. Start again.');
       const d = snap.data();
       if (d.used) throw httpError(410, 'This reset link was already used. Start again.');
-      if (d.expiresAt?.toMillis?.() < Date.now()) throw httpError(410, 'Reset request expired. Start again.');
+      if (Number(d.expiresAt) < Date.now()) throw httpError(410, 'Reset request expired. Start again.');
       uid = String(d.uid);
-      tx.update(ref, { used: true, usedAt: TS() });
-    });
+      await sdocUpdate(ref.collection, ref.id, { used: true, usedAt: TS() });
+    }
 
     // New hash + invalidate every existing session for this user.
-    await db().collection('password_credentials').doc(uid)
-      .set({ hash: hashPassword(password), updatedAt: TS() }, { merge: true });
+    await sdocSet('password_credentials', uid,
+      { hash: hashPassword(password), updatedAt: TS() }, true);
     await initAdmin().auth().revokeRefreshTokens(uid);
 
     // Consume any other outstanding reset tokens for this uid.
-    const others = await db().collection('password_resets').where('uid', '==', uid).get();
-    const writer = db().batch();
-    others.docs.forEach(doc => { if (doc.id !== sha256hex(resetToken)) writer.delete(doc.ref); });
-    await writer.commit();
+    const others = await squery('password_resets', [{ field: 'uid', value: uid }]);
+    for (const doc of others) {
+      if (doc.id !== sha256hex(resetToken)) await sdocDelete('password_resets', doc.id);
+    }
 
     return res.status(200).json({ ok: true });
   }

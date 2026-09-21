@@ -20,9 +20,9 @@
  *      fallback), GEMINI_API_KEY (API_KEY accepted as legacy alias),
  *      FIREBASE_SERVICE_ACCOUNT.
  */
-import { db, TS, verifyUser, httpError } from './_lib/firebase.js';
+import { verifyUser, httpError } from './_lib/firebase.js';
+import { sdocGet, sdocUpdate, sincr, TS } from './_lib/store.js';
 import { apiHandler } from './_lib/http.js';
-import { FieldValue } from 'firebase-admin/firestore';
 import { GoogleGenAI } from '@google/genai';
 import { PROVIDER_POOLS, chainFor, resolveChain, route } from './_lib/omni.js';
 
@@ -44,9 +44,8 @@ const THIRTY_DAYS_MS = 30 * DAY_MS;
 /** Reads usage + plan, resets stale windows, returns { plan, limits, usage } or null on failure. */
 async function loadUsage(uid) {
   try {
-    const ref = db().collection('users').doc(uid);
-    const snap = await ref.get();
-    const data = snap.data() || {};
+    const snap = await sdocGet('users', uid);
+    const data = snap.exists ? snap.data() : {};
     const now = Date.now();
     const planKeyRaw = (data.plan || 'free').toLowerCase();
     const planKey = planKeyRaw === 'elite' ? 'pro' : planKeyRaw;
@@ -60,7 +59,7 @@ async function loadUsage(uid) {
     if (!mediaWindowStart || now - mediaWindowStart > THIRTY_DAYS_MS) {
       usage.images = 0; usage.videos = 0; usage.mediaWindowStart = now; mediaWindowStart = now;
     }
-    if (Object.keys(updates).length) await ref.set({ ...updates, usage }, { merge: true });
+    if (Object.keys(updates).length) await sdocSet('users', uid, { ...updates, usage }, true);
 
     return { plan: planKey, limits, usage };
   } catch {
@@ -90,9 +89,9 @@ function enforceLimit(u, kind) {
 
 async function incrementUsage(uid, kind) {
   try {
-    const ref = db().collection('users').doc(uid);
-    const field = kind === 'text' ? 'usage.text' : kind === 'images' ? 'usage.images' : 'usage.videos';
-    await ref.set({ [field]: FieldValue.increment(1), lastUpdated: TS() }, { merge: true });
+    const field = kind === 'text' ? 'text' : kind === 'images' ? 'images' : 'videos';
+    await sincr('users', uid, ['usage', field]);
+    await sdocUpdate('users', uid, { lastUpdated: TS() });
   } catch { /* non-blocking */ }
 }
 
@@ -139,8 +138,8 @@ function getContextLimit(plan) {
 
 async function getUserMemory(uid) {
   try {
-    const snap = await db().collection('users').doc(uid).get();
-    return snap.data()?.memory || '';
+    const snap = await sdocGet('users', uid);
+    return snap.exists ? snap.data()?.memory || '' : '';
   } catch { return ''; }
 }
 
@@ -149,7 +148,7 @@ async function getFilesText(uid, fileIds) {
   try {
     const parts = [];
     for (const fid of fileIds.slice(0, 5)) {
-      const snap = await db().collection('users').doc(uid).collection('files').doc(fid).get();
+      const snap = await sdocGet(`users/${uid}/files`, fid);
       if (!snap.exists) continue;
       const d = snap.data();
       if (d.parsedText) {
