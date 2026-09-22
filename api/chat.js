@@ -24,7 +24,7 @@ import { verifyUser, httpError } from './_lib/auth.js';
 import { sdocGet, sdocUpdate, sincr, TS } from './_lib/store.js';
 import { apiHandler } from './_lib/http.js';
 import { GoogleGenAI } from '@google/genai';
-import { PROVIDER_POOLS, chainFor, resolveChain, route, groqSearch } from './_lib/omni.js';
+import { PROVIDER_POOLS, chainFor, resolveChain, route, groqSearch, liveCatalog } from './_lib/omni.js';
 
 export const config = { maxDuration: 120 };
 
@@ -205,10 +205,12 @@ function extractLinks(response) {
 // ═════════════════════════════════════════════════════════════════════════════
 async function handler(req, res) {
   if (req.method === 'GET') {
+    if (req.query.compat === 'openai') return handleOpenAICompat(req, res);
     // Minimal health probe — no configuration details exposed.
     return res.status(200).json({ ok: PROVIDER_POOLS.openrouter().length > 0 });
   }
   if (req.method !== 'POST') throw httpError(405, 'POST only');
+  if (req.query.compat === 'openai') return handleOpenAICompat(req, res);
 
   const uid = await verifyUser(req);
   if (!uid) throw httpError(401, 'Sign in to use Orin AI');
@@ -726,3 +728,84 @@ async function handleMathExtract(req, res) {
 }
 
 export default apiHandler(handler);
+
+// ── OpenAI-compatible shim (Orin Agent provider, CLI, any OpenAI client) ───
+// Same function, same quotas, same free chains — just the OpenRouter shape.
+//   GET  /api/openai/v1/models            → preset list (public, no auth)
+//   POST /api/openai/v1/chat/completions  → { model, messages } (Bearer Orin session)
+// Models (the Orin presets): orin-thinking (max brains), orin-balanced
+// (speed+smarts), orin-coding (best free coder, resolved live), orin-cheap.
+// No web-search plugin on this path — search comes via the orin-tools skill.
+const ORIN_PRESETS = ['orin-thinking', 'orin-balanced', 'orin-coding', 'orin-cheap'];
+
+function openAIText(content) {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((p) => (typeof p === 'string' ? p : p?.text || ''))
+      .filter(Boolean)
+      .join('\n');
+  }
+  return '';
+}
+
+async function handleOpenAICompat(req, res) {
+  const op = req.query.op || '';
+  if (req.method === 'GET' && op === 'models') {
+    return res.status(200).json({
+      object: 'list',
+      data: ORIN_PRESETS.map((id) => ({ id, object: 'model', created: 0, owned_by: 'orin' })),
+    });
+  }
+  if (req.method !== 'POST' || op !== 'chat') throw httpError(404, 'Unknown OpenAI endpoint');
+
+  const uid = await verifyUser(req);
+  if (!uid) throw httpError(401, 'Sign in to use Orin AI');
+  const usageInfo = await loadUsage(uid);
+
+  const { model = 'orin-balanced', messages = [] } = req.body || {};
+  if (!ORIN_PRESETS.includes(model)) {
+    throw httpError(400, 'Unknown model. Use orin-thinking, orin-balanced, orin-coding, or orin-cheap.');
+  }
+  if (!Array.isArray(messages) || !messages.length) throw httpError(400, 'messages required');
+
+  enforceLimit(usageInfo, 'text');
+  const memory = await getUserMemory(uid);
+  const systemInstruction = getSystemInstruction('neutral', memory);
+
+  const chain = [{ role: 'system', content: systemInstruction }];
+  for (const m of messages.slice(0, -1)) {
+    const text = openAIText(m?.content).slice(0, 8000);
+    if (!text) continue;
+    chain.push({ role: m?.role === 'user' ? 'user' : m?.role === 'system' ? 'system' : 'assistant', content: text });
+  }
+  const last = messages[messages.length - 1];
+  const prompt = openAIText(last?.content).slice(0, 12000) || 'Continue.';
+
+  const wantThinking = model === 'orin-thinking';
+  let requestedModel;
+  if (model === 'orin-coding') {
+    try {
+      const catalog = await liveCatalog();
+      requestedModel = catalog?.defaults?.coding || undefined;
+    } catch { requestedModel = undefined; }
+  }
+  const resolved = await resolveChain({ model: requestedModel, thinking: wantThinking });
+  let result = null;
+  let lastErr = null;
+  try {
+    result = await route(resolved.chain, [...chain, { role: 'user', content: prompt }], { wantThinking });
+  } catch (e) { lastErr = e; }
+  if (!result) throw lastErr || new Error('No response');
+
+  const text = (result.text || '').trim();
+  incrementUsage(uid, 'text');
+  return res.status(200).json({
+    id: 'chatcmpl-orin-' + Date.now().toString(36),
+    object: 'chat.completion',
+    created: Math.floor(Date.now() / 1000),
+    model,
+    choices: [{ index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' }],
+    usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+  });
+}

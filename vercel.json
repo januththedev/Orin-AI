@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/api/openai/v1/chat/completions",
+      "destination": "/api/chat?compat=openai&op=chat"
+    },
+    {
+      "source": "/api/openai/v1/models",
+      "destination": "/api/chat?compat=openai&op=models"
+    },
+    {
       "source": "/((?!api/|sitemap.xml|robots.txt|favicon.svg|sw.js|manifest.json|assets|privacy\\.html|releases\\.html).*)",
       "destination": "/index.html"
     }
