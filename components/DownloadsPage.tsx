@@ -80,14 +80,14 @@ const DownloadsPage: React.FC<DownloadsPageProps> = ({ onClose, lang }) => {
   };
 
   const codeSnippets = {
-    js: `<!-- Orin AI Search Widget -->
+    js: `<!-- Orin Chat Search Widget -->
 <div style="max-width: 600px; margin: 20px auto; font-family: 'Plus Jakarta Sans', sans-serif;">
   <form onsubmit="searchOrin(event)" style="display: flex; gap: 8px; background: rgba(255,255,255,0.9); border: 1px solid #e2e8f0; border-radius: 20px; padding: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-    <input type="text" id="orin-query" placeholder="Ask Orin AI..." required style="flex: 1; border: none; padding: 12px 18px; outline: none; background: transparent;" />
+    <input type="text" id="orin-query" placeholder="Ask Orin Chat..." required style="flex: 1; border: none; padding: 12px 18px; outline: none; background: transparent;" />
     <button type="submit" style="background: #0891b2; color: white; border: none; padding: 10px 24px; border-radius: 14px; font-weight: 800; cursor: pointer;">GO</button>
   </form>
   <div style="text-align: center; margin-top: 10px; font-size: 9px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 2px;">
-    Orin AI | JN Productions | Januth Nimnal
+    Orin Chat | JN Productions | Januth Nimnal
   </div>
 </div>
 
@@ -98,7 +98,7 @@ const DownloadsPage: React.FC<DownloadsPageProps> = ({ onClose, lang }) => {
     window.location.href = "https://www.orinai.org/#chat?prompt=" + encodeURIComponent(q);
   }
 </script>`,
-    ts: `// Orin AI React Component
+    ts: `// Orin Chat React Component
 import React, { useState } from 'react';
 
 export const OrinSearch = () => {
@@ -115,7 +115,7 @@ export const OrinSearch = () => {
         <button className="bg-cyan-600 text-white px-6 rounded-2xl font-black text-xs uppercase">GO</button>
       </form>
       <div className="text-center mt-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-        Orin AI | JN Productions | Januth Nimnal
+        Orin Chat | JN Productions | Januth Nimnal
       </div>
     </div>
   );
@@ -125,7 +125,7 @@ import streamlit as st
 import urllib.parse
 
 def orin_search_widget():
-    query = st.text_input("Ask Orin AI anything:", placeholder="Help with math...")
+    query = st.text_input("Ask Orin Chat anything:", placeholder="Help with math...")
     if st.button("GO"):
         safe_q = urllib.parse.quote(query)
         st.markdown(f'<meta http-equiv="refresh" content="0;URL=\\'https://www.orinai.org/#chat?prompt={safe_q}\\'">', unsafe_allow_html=True)

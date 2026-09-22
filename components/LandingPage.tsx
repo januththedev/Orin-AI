@@ -35,8 +35,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ lang, user, onStartChat, onLo
       {/* Top bar */}
       <header className="shrink-0 h-16 flex items-center justify-between px-5 md:px-10 border-b border-black/[0.05] dark:border-white/[0.05] bg-white/70 dark:bg-stone-900/60 backdrop-blur sticky top-0 z-40">
         <div className="flex items-center gap-2.5">
-          <img src="/favicon.svg" alt="Orin AI" className="w-8 h-8 drop-shadow" />
-          <span className="text-sm font-black tracking-tight text-stone-900 dark:text-white">Orin AI</span>
+            <img src="/favicon.svg" alt="Orin Chat" className="w-8 h-8 drop-shadow" />
+            <span className="text-sm font-black tracking-tight text-stone-900 dark:text-white">Orin Chat</span>
         </div>
         <div className="flex items-center gap-2">
           {user ? (

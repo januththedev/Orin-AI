@@ -281,7 +281,7 @@ class SessionService {
     }
   }
 
-  // Orin AI is completely free — no usage caps client-side; the API layer
+  // Orin Chat is completely free — no usage caps client-side; the API layer
   // keeps its own abuse protection.
   async checkLimit(_uid: string, _type: 'text' | 'images' | 'videos'): Promise<boolean> {
     return false;

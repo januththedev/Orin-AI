@@ -6,7 +6,7 @@ export const APP_CONFIG = {
   branding: "© 2026 JN Productions • Orin AI",
   isWhiteLabel: false,
   releaseYear: 2026,
-  platformName: "Orin AI",
+  platformName: "Orin Chat",
   sloganEn: "From a Sri Lankan to Sri Lankans.",
   sloganSi: "ශ්‍රී ලාංකිකයෙකුගෙන් ශ්‍රී ලාංකිකයන්ට.",
   owner: "JN Productions",

@@ -51,7 +51,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <button onClick={() => { window.location.hash = 'landing'; onClose(); }} className="flex items-center gap-2.5 group" title="Home">
             <img src="/favicon.svg" alt="" className="w-8 h-8 drop-shadow-md transition-transform group-hover:scale-105" />
-            <span className="text-sm font-black tracking-tight text-stone-900 dark:text-white">Orin AI</span>
+            <span className="text-sm font-black tracking-tight text-stone-900 dark:text-white">Orin Chat</span>
           </button>
           <button onClick={onClose} className="md:hidden w-8 h-8 rounded-lg flex items-center justify-center text-stone-400 hover:text-stone-700 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5" aria-label="Close menu">
             <i className="fa-solid fa-xmark" />

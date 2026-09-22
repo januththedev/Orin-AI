@@ -376,7 +376,7 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
           </button>
           <h2 className="text-xs font-black uppercase tracking-[0.18em] text-stone-800 dark:text-stone-100 truncate flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-br from-cyan-400 to-sky-500 shadow-sm shadow-cyan-500/50" aria-hidden />
-            {isPrivate ? 'Private chat' : 'Orin AI'}
+            {isPrivate ? 'Private chat' : 'Orin Chat'}
           </h2>
           {isPrivate && <i className="fa-solid fa-lock text-[10px] text-cyan-500" aria-hidden />}
         </div>

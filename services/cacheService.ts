@@ -1,6 +1,6 @@
 
 /**
- * Orin AI Neural Cache Engine
+  * Orin Chat Neural Cache Engine
  * Centralized service for local persistence and session management.
  */
 

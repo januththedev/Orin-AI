@@ -7,14 +7,14 @@ const PRIVACY_CONTENT: Record<Language, { title: string; version: string; sectio
     title: "Privacy Policy",
     version: "Simplified View v4.9",
     sections: [
-      { head: "01. Your Data Stays on Your Device", body: "We built Orin AI with a 'Local-First' approach. Your chat history lives in your browser, not on our servers. Unless you explicitly sync, you are the only one holding your data." },
+      { head: "01. Your Data Stays on Your Device", body: "We built Orin Chat with a 'Local-First' approach. Your chat history lives in your browser, not on our servers. Unless you explicitly sync, you are the only one holding your data." },
       { head: "02. How We Use AI Models", body: "We use Google's Gemini to power the intelligence. Your prompts are sent securely for processing and then immediately forgotten. We do not use your data to train AI models." },
       { head: "03. Secure Connection", body: "Everything sent between you and Orin is encrypted. No one can intercept your creative or professional work." },
       { head: "04. No Tracking Cookies", body: "We don't track you across the internet. We only use tiny storage bits to remember your dark mode setting and language preference." },
       { head: "05. Delete Your Data Anytime", body: "Want a fresh start? Just log out or clear your browser cache. Since we don't store your history, this permanently wipes everything instantly." },
       { head: "06. Voice Data Privacy", body: "When you use Voice Mode, audio is converted to text in real-time. We never store or listen to your audio recordings." },
       { head: "07. Safety Standards", body: "We follow global safety standards to ensure Orin is safe for daily professional and personal use." },
-      { head: "08. Refund & Return Policy", body: "Since Orin AI provides instant access to digital neural services, payments are generally non-refundable once the service is utilized. However, if a technical failure prevents service delivery, please contact support within 7 days for a full refund resolution. You may cancel subscriptions at any time to prevent future billing charges." }
+      { head: "08. Refund & Return Policy", body: "Since Orin Chat provides instant access to digital neural services, payments are generally non-refundable once the service is utilized. However, if a technical failure prevents service delivery, please contact support within 7 days for a full refund resolution. You may cancel subscriptions at any time to prevent future billing charges." }
     ],
     footer: "JN Productions Global Privacy Statement"
   },

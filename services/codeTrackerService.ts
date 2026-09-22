@@ -25,7 +25,7 @@ export class CodeTrackerService {
     const snapshot = history.find(s => s.version === version);
     if (!snapshot) return "Deployment logs for this version are currently archived.";
 
-    const prompt = `You are a professional technical lead. Provide a concise 2-sentence executive summary of this GitHub release log for Orin AI v${version}. Focus on institutional value and stability.
+    const prompt = `You are a professional technical lead. Provide a concise 2-sentence executive summary of this GitHub release log for Orin Chat v${version}. Focus on institutional value and stability.
     Log: ${snapshot.body}`;
 
     try {

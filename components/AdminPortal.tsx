@@ -102,7 +102,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ user, onClose }) => {
                {loading ? "Submitting Request..." : "Request Approval"}
             </button>
          </form>
-         <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest">Back to Orin AI</button>
+         <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest">Back to Orin Chat</button>
       </div>
     );
   }

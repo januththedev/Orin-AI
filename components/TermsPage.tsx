@@ -8,7 +8,7 @@ const TERMS_CONTENT: Record<Language, { title: string; version: string; sections
     title: "Terms of Service",
     version: "Simplified View v4.8",
     sections: [
-      { head: "01. Agreement", body: "By using Orin AI, you agree to these simple rules designed to keep the platform safe and functional for everyone." },
+      { head: "01. Agreement", body: "By using Orin Chat, you agree to these simple rules designed to keep the platform safe and functional for everyone." },
       { head: "02. Fair Use", body: "Use this workspace for research, creativity, and professional work. Do not use it to generate spam, illegal content, or anything that harms others." },
       { head: "03. AI Accuracy Warning", body: "AI can make mistakes. Always double-check important facts, especially for medical, legal, or financial decisions." },
       { head: "04. You Own Your Creations", body: "The text and images you create here belong to you. You are free to use them for your personal or commercial projects without extra fees." },
