@@ -161,6 +161,24 @@ class SessionService {
     await this.authApi('set-password', { password });
   }
 
+  // ─── MCP credentials (Orin MCP tokens for external AI clients) ───────────
+
+  /** Mint a scoped token. Returns the secret ONCE — caller must display it. */
+  async mcpCreate(name: string, scopes: string[]): Promise<{ token: string; id: string; name: string; scopes: string[] }> {
+    return this.authApi('mcp-create', { name, scopes });
+  }
+
+  /** List token metadata (never secrets). */
+  async mcpList(): Promise<Array<{ id: string; name: string; scopes: string[]; prefix: string; createdAt: number; lastUsedAt: number }>> {
+    const data = await this.authApi('mcp-list', {});
+    return data.tokens || [];
+  }
+
+  /** Revoke by id — the token dies immediately, everywhere. */
+  async mcpRevoke(id: string): Promise<void> {
+    await this.authApi('mcp-revoke', { id });
+  }
+
   // ─── Session handoff ──────────────────────────────────────────────────────
 
   /**

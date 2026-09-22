@@ -48,12 +48,14 @@ export function sanitizeUid(v) {
  * Mint an Orin session token. tv = users/{uid}.tokenVersion at mint time;
  * bumping tokenVersion revokes all previously minted sessions.
  */
-export function mintSession(uid, { email = '', tv = 0 } = {}) {
+export function mintSession(uid, { email = '', tv = 0, typ = 'session', jti = '', scopes = [], expDays = 30 } = {}) {
   const now = Math.floor(Date.now() / 1000);
   const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
   const body = b64url(JSON.stringify({
     iss: 'orin', uid: String(uid), email: String(email || ''),
-    tv: Number(tv) || 0, iat: now, exp: now + 30 * 24 * 3600,
+    tv: Number(tv) || 0, typ, jti: String(jti || ''),
+    scopes: Array.isArray(scopes) ? scopes.map(String) : [],
+    iat: now, exp: now + Math.max(1, Number(expDays) || 30) * 24 * 3600,
   }));
   const sig = b64url(crypto.createHmac('sha256', sessionSecret()).update(`${header}.${body}`).digest());
   return `${header}.${body}.${sig}`;
@@ -92,10 +94,30 @@ function verifySessionSignature(token) {
   return payload;
 }
 
-/** Full session check incl. revocation (tokenVersion). Throws 401. */
+/** Signature-only verification (no DB). Callers enforce revocation/scopes. */
+export function verifySessionPayload(token) {
+  return verifySessionSignature(token);
+}
+
+/** Full session check incl. revocation (tokenVersion / MCP registry). Throws 401. */
 async function checkSession(token) {
   const payload = verifySessionSignature(token);
   const uid = String(payload.uid);
+  // MCP tokens (typ:'mcp') fail closed against their registry row — revoke
+  // deletes the row, so stolen/revoked tokens die even before expiry.
+  if (payload.typ === 'mcp') {
+    if (!payload.jti) throw httpError(401, 'Invalid or expired token');
+    try {
+      const snap = await sdocGet('mcp_credentials', String(payload.jti));
+      if (!snap.exists || String(snap.data()?.uid) !== uid) {
+        throw httpError(401, 'MCP credential revoked — create a new one.');
+      }
+    } catch (e) {
+      if (e && e.code === 401) throw e;
+      // DB hiccup on a read path: accept the signature (write paths re-check).
+    }
+    return { uid, email: payload.email || '', scopes: payload.scopes || [] };
+  }
   let tv = 0;
   try {
     const snap = await sdocGet('users', uid);

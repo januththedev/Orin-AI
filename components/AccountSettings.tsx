@@ -45,11 +45,19 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
   const [newPw, setNewPw] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
   const [pwMsg, setPwMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  // MCP tokens (Orin MCP for external AI clients)
+  const [mcpTokens, setMcpTokens] = useState<Array<{ id: string; name: string; scopes: string[]; prefix: string; createdAt: number; lastUsedAt: number }>>([]);
+  const [mcpName, setMcpName] = useState('');
+  const [mcpScopes, setMcpScopes] = useState<string[]>(['chat:generate', 'models:read']);
+  const [mcpNew, setMcpNew] = useState<string | null>(null);
+  const [mcpMsg, setMcpMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const MCP_ALL = ['models:read', 'chat:generate', 'usage:read'];
 
   useEffect(() => {
      if (user) {
         sessionService.getUserMemory(user.id).then(m => setMemory(m.slice(0, MEMORY_MAX_LENGTH)));
         sessionService.getUsage(user.id).then(setUsage).catch(() => {});
+        sessionService.mcpList().then(setMcpTokens).catch(() => {});
         setEditName(user.name || '');
         setEditPhone(user.phone || '');
      } else {
@@ -126,8 +134,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
     }
   };
 
-  const handleSetPassword = async () => {
-    setPwMsg(null);
+  const handleSetPassword = async () => {    setPwMsg(null);
     if (newPw.length < 8 || !/[a-zA-Z]/.test(newPw) || !/\d/.test(newPw)) {
       setPwMsg({ kind: 'err', text: 'Password needs at least 8 characters with letters and numbers.' });
       return;
@@ -140,6 +147,36 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
       setPwMsg({ kind: 'ok', text: 'Password saved. You can now sign in with your email/phone + password.' });
     } catch (err: any) {
       setPwMsg({ kind: 'err', text: err?.message || 'Could not set password.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMcpCreate = async () => {
+    setMcpMsg(null); setMcpNew(null);
+    if (!mcpScopes.length) { setMcpMsg({ kind: 'err', text: 'Pick at least one scope.' }); return; }
+    setLoading(true);
+    try {
+      const r = await sessionService.mcpCreate(mcpName.trim() || 'MCP token', mcpScopes);
+      setMcpNew(r.token);
+      setMcpName('');
+      setMcpTokens(await sessionService.mcpList().catch(() => mcpTokens));
+      setMcpMsg({ kind: 'ok', text: 'Copy it now — it will never be shown again.' });
+    } catch (err: any) {
+      setMcpMsg({ kind: 'err', text: err?.message || 'Could not create token.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMcpRevoke = async (id: string) => {
+    if (!window.confirm('Revoke this token? Connected apps stop working immediately.')) return;
+    setLoading(true);
+    try {
+      await sessionService.mcpRevoke(id);
+      setMcpTokens(await sessionService.mcpList().catch(() => mcpTokens.filter(t => t.id !== id)));
+    } catch (err: any) {
+      setMcpMsg({ kind: 'err', text: err?.message || 'Could not revoke.' });
     } finally {
       setLoading(false);
     }
@@ -303,6 +340,55 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
                   className="px-5 py-2.5 rounded-xl bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-950 text-[10px] font-black uppercase tracking-widest hover:opacity-90 disabled:opacity-40 transition-opacity">
                   Save password
                 </button>
+              </div>
+
+              {/* MCP tokens (Orin MCP for Claude / Cursor / VS Code) */}
+              <div className="space-y-3">
+                <label className={labelCls}><i className="fa-solid fa-plug text-cyan-500" /> MCP tokens</label>
+                <p className="text-[11px] text-stone-500 dark:text-stone-400 px-1">Scoped tokens that let external AI clients (Claude, Cursor, VS Code) call Orin as tools. Least privilege by default — revoke any time.</p>
+                {mcpNew && (
+                  <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">New token — copy now, shown once</p>
+                    <code className="block break-all text-xs font-mono bg-black/20 dark:bg-white/10 rounded-xl px-3 py-2 text-stone-800 dark:text-stone-100">{mcpNew}</code>
+                    <button onClick={() => { navigator.clipboard.writeText(mcpNew); setMcpNew(null); }}
+                      className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 transition-colors">
+                      Copy &amp; close
+                    </button>
+                  </div>
+                )}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input value={mcpName} onChange={e => setMcpName(e.target.value)} placeholder="Token name (e.g. Claude Desktop)" aria-label="Token name" maxLength={60} className={inputCls} />
+                </div>
+                <div className="flex flex-wrap gap-2 px-1">
+                  {MCP_ALL.map(s => (
+                    <button key={s} type="button" onClick={() => setMcpScopes(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])}
+                      aria-pressed={mcpScopes.includes(s)}
+                      className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${mcpScopes.includes(s) ? 'bg-cyan-500 text-stone-950 border-cyan-500' : 'border-stone-300 dark:border-white/10 text-stone-400'}`}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+                {mcpMsg && <p role="status" className={`text-xs font-bold px-1 ${mcpMsg.kind === 'ok' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>{mcpMsg.text}</p>}
+                <button onClick={handleMcpCreate} disabled={loading}
+                  className="px-5 py-2.5 rounded-xl bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-950 text-[10px] font-black uppercase tracking-widest hover:opacity-90 disabled:opacity-40 transition-opacity">
+                  Create token
+                </button>
+                {mcpTokens.length > 0 && (
+                  <div className="space-y-2">
+                    {mcpTokens.map(t => (
+                      <div key={t.id} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-stone-900 border border-black/[0.05] dark:border-white/[0.06]">
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-stone-900 dark:text-white truncate">{t.name}</p>
+                          <p className="text-[10px] font-mono text-stone-400 truncate">{t.scopes.join(' · ') || 'no scopes'} · …{t.prefix.slice(-6)}</p>
+                        </div>
+                        <button onClick={() => handleMcpRevoke(t.id)} disabled={loading}
+                          className="shrink-0 px-3 py-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-40">
+                          Revoke
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Memory */}

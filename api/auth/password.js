@@ -21,7 +21,7 @@
  *   confirming a reset bumps users/{uid}.tokenVersion (revokes all sessions).
  */
 import crypto from 'crypto';
-import { requireUser, mintSession, httpError } from '../_lib/auth.js';
+import { requireUser, mintSession, verifySessionPayload, httpError } from '../_lib/auth.js';
 import { sdocGet, sdocSet, sdocUpdate, sdocDelete, squery, TS } from '../_lib/store.js';
 import { apiHandler } from '../_lib/http.js';
 import { hashPassword, verifyPassword } from '../_lib/passwords.js';
@@ -321,10 +321,96 @@ async function handler(req, res) {
       if (doc.id !== sha256hex(resetToken)) await sdocDelete('password_resets', doc.id);
     }
 
+    // A password reset also kills external MCP tokens for this account.
+    try {
+      const mcps = await squery('mcp_credentials', [{ field: 'uid', value: uid }]);
+      for (const doc of mcps) await sdocDelete('mcp_credentials', doc.id);
+    } catch {}
+
     return res.status(200).json({ ok: true });
   }
 
-  throw httpError(400, 'Unknown action. Use register, login, set-password, reset-verify, or reset-confirm.');
+  // ── MCP CREDENTIALS (Orin MCP tokens for external AI clients) ────────────
+  // Dedicated long-lived, scope-limited session tokens. Shown ONCE at mint;
+  // only sha256 hashes + metadata live in Neon. Revoke deletes the row, and
+  // auth.js fails closed on the missing row — stolen tokens die on revoke.
+  const MCP_SCOPES = ['models:read', 'chat:generate', 'usage:read'];
+
+  // mcp-verify is PUBLIC (called by the MCP server per session start).
+  if (action === 'mcp-verify') {
+    const { token } = req.body || {};
+    if (!(await rateLimit('mcp-verify:' + clientIp(req), 60, 60_000)))
+      throw httpError(429, 'Slow down');
+    let payload;
+    try {
+      payload = verifySessionPayload(String(token || ''));
+    } catch {
+      throw httpError(401, 'Invalid credential');
+    }
+    if (payload.iss !== 'orin' || payload.typ !== 'mcp' || !payload.jti) {
+      throw httpError(401, 'Not an MCP credential');
+    }
+    const snap = await sdocGet('mcp_credentials', String(payload.jti));
+    if (!snap.exists || String(snap.data()?.uid) !== String(payload.uid)) {
+      throw httpError(401, 'Credential revoked');
+    }
+    const scopes = Array.isArray(payload.scopes) ? payload.scopes.filter((s) => MCP_SCOPES.includes(s)) : [];
+    try {
+      await sdocSet('mcp_credentials', String(payload.jti), { lastUsedAt: TS() }, true);
+    } catch {}
+    return res.status(200).json({ uid: String(payload.uid), scopes });
+  }
+
+  if (action === 'mcp-create') {
+    const decoded = await requireUser(req);
+    const uid = decoded.uid;
+    const { name, scopes } = req.body || {};
+    const cleanName = String(name || '').trim().slice(0, 60) || 'MCP token';
+    const cleanScopes = Array.isArray(scopes) ? [...new Set(scopes.map(String))].filter((s) => MCP_SCOPES.includes(s)) : [];
+    if (!cleanScopes.length) throw httpError(400, 'Pick at least one scope: ' + MCP_SCOPES.join(', '));
+    if (!(await rateLimit('mcp-create:' + uid, 10, 60_000)))
+      throw httpError(429, 'Too many tokens. Try again later.');
+    const existing = await squery('mcp_credentials', [{ field: 'uid', value: uid }]);
+    if (existing.length >= 10) throw httpError(409, 'Token limit reached (10). Revoke one first.');
+
+    const jti = 'mcp_' + crypto.randomBytes(12).toString('hex');
+    const token = mintSession(uid, { email: decoded.email || '', tv: await currentTokenVersion(uid), typ: 'mcp', jti, scopes: cleanScopes, expDays: 365 });
+    await sdocSet('mcp_credentials', jti, {
+      uid, name: cleanName, scopes: cleanScopes,
+      prefix: token.slice(-12),
+      hash: sha256hex(token),
+      createdAt: TS(), lastUsedAt: 0,
+    });
+    return res.status(200).json({ token, id: jti, name: cleanName, scopes: cleanScopes });
+  }
+
+  if (action === 'mcp-list') {
+    const decoded = await requireUser(req);
+    const docs = await squery('mcp_credentials', [{ field: 'uid', value: decoded.uid }], { limit: 50 });
+    return res.status(200).json({
+      tokens: docs.map((d) => {
+        const v = d.data() || {};
+        return {
+          id: d.id, name: v.name || '', scopes: v.scopes || [],
+          prefix: v.prefix || '', createdAt: v.createdAt || 0, lastUsedAt: v.lastUsedAt || 0,
+        };
+      }),
+    });
+  }
+
+  if (action === 'mcp-revoke') {
+    const decoded = await requireUser(req);
+    const { id } = req.body || {};
+    if (!id || typeof id !== 'string') throw httpError(400, 'Token id required');
+    const snap = await sdocGet('mcp_credentials', id);
+    if (!snap.exists || String(snap.data()?.uid) !== String(decoded.uid)) {
+      throw httpError(404, 'Token not found');
+    }
+    await sdocDelete('mcp_credentials', id);
+    return res.status(200).json({ ok: true });
+  }
+
+  throw httpError(400, 'Unknown action. Use register, login, set-password, reset-verify, reset-confirm, mcp-create, mcp-list, mcp-revoke, or mcp-verify.');
 }
 
 function normPhone(v) {
