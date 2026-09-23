@@ -14,6 +14,14 @@ const ALLOWED_ORIGINS = new Set([
   'https://orinai.org',
   'https://www.orinai.org',
   'https://orin-ai.vercel.app',
+  // Orin first-party satellites (same login everywhere)
+  'https://chat.orinai.org',
+  'https://code.orinai.org',
+  'https://agent.orinai.org',
+  'https://tools.orinai.org',
+  'https://mcp.orinai.org',
+  'https://router.orinai.org',
+  'https://console.orinai.org',
   // local dev servers
   'http://localhost:5173',
   'http://localhost:4173',
