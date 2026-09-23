@@ -169,8 +169,37 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
     }
   };
 
-  const handleMcpRevoke = async (id: string) => {
-    if (!window.confirm('Revoke this token? Connected apps stop working immediately.')) return;
+  const handleMcpRotate = async (id: string) => {
+    if (!window.confirm('Rotate this token? The old secret stops working immediately.')) return;
+    setLoading(true); setMcpMsg(null); setMcpNew(null);
+    try {
+      const r = await sessionService.mcpRotate(id);
+      setMcpNew(r.token);
+      setMcpTokens(await sessionService.mcpList().catch(() => mcpTokens));
+      setMcpMsg({ kind: 'ok', text: 'Rotated. Copy the new secret now — shown once.' });
+    } catch (err: any) {
+      setMcpMsg({ kind: 'err', text: err?.message || 'Could not rotate.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMcpRename = async (id: string, current: string) => {
+    const name = window.prompt('Token name:', current);
+    if (name === null) return;
+    if (!name.trim()) { setMcpMsg({ kind: 'err', text: 'Name cannot be empty.' }); return; }
+    setLoading(true);
+    try {
+      await sessionService.mcpRename(id, name.trim());
+      setMcpTokens(await sessionService.mcpList().catch(() => mcpTokens));
+    } catch (err: any) {
+      setMcpMsg({ kind: 'err', text: err?.message || 'Could not rename.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMcpRevoke = async (id: string) => {    if (!window.confirm('Revoke this token? Connected apps stop working immediately.')) return;
     setLoading(true);
     try {
       await sessionService.mcpRevoke(id);
@@ -381,10 +410,20 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onClose, lang, user, 
                           <p className="text-sm font-bold text-stone-900 dark:text-white truncate">{t.name}</p>
                           <p className="text-[10px] font-mono text-stone-400 truncate">{t.scopes.join(' · ') || 'no scopes'} · …{t.prefix.slice(-6)}</p>
                         </div>
+                        <div className="shrink-0 flex flex-wrap justify-end gap-2">
+                        <button onClick={() => handleMcpRotate(t.id)} disabled={loading} title="New secret, same scopes"
+                          className="shrink-0 px-3 py-2 rounded-xl bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500 hover:text-stone-950 text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-40">
+                          Rotate
+                        </button>
+                        <button onClick={() => handleMcpRename(t.id, t.name)} disabled={loading} title="Rename token"
+                          className="shrink-0 px-3 py-2 rounded-xl bg-stone-500/10 text-stone-500 dark:text-stone-300 hover:bg-stone-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-40">
+                          Rename
+                        </button>
                         <button onClick={() => handleMcpRevoke(t.id)} disabled={loading}
                           className="shrink-0 px-3 py-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-40">
                           Revoke
                         </button>
+                        </div>
                       </div>
                     ))}
                   </div>

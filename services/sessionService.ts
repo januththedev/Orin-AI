@@ -179,6 +179,16 @@ class SessionService {
     await this.authApi('mcp-revoke', { id });
   }
 
+  /** Rename (display name only). */
+  async mcpRename(id: string, name: string): Promise<void> {
+    await this.authApi('mcp-rename', { id, name });
+  }
+
+  /** Rotate: new secret, same name + scopes. Returns the new secret ONCE. */
+  async mcpRotate(id: string): Promise<{ token: string; id: string; name: string; scopes: string[] }> {
+    return this.authApi('mcp-rotate', { id });
+  }
+
   // ─── Session handoff ──────────────────────────────────────────────────────
 
   /**

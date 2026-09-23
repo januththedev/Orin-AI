@@ -410,7 +410,51 @@ async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
-  throw httpError(400, 'Unknown action. Use register, login, set-password, reset-verify, reset-confirm, mcp-create, mcp-list, mcp-revoke, or mcp-verify.');
+  // Rename only (name is display-only; scopes/secret untouched).
+  if (action === 'mcp-rename') {
+    const decoded = await requireUser(req);
+    const { id, name } = req.body || {};
+    if (!id || typeof id !== 'string') throw httpError(400, 'Token id required');
+    const cleanName = String(name || '').trim().slice(0, 60);
+    if (!cleanName) throw httpError(400, 'Name required');
+    const snap = await sdocGet('mcp_credentials', id);
+    if (!snap.exists || String(snap.data()?.uid) !== String(decoded.uid)) {
+      throw httpError(404, 'Token not found');
+    }
+    await sdocSet('mcp_credentials', id, { name: cleanName }, true);
+    return res.status(200).json({ ok: true });
+  }
+
+  // Rotate atomically: revoke the old row, mint a fresh secret with the
+  // same name + scopes. One call so there is never a window with two
+  // live tokens (or zero, on failure before mint).
+  if (action === 'mcp-rotate') {
+    const decoded = await requireUser(req);
+    const uid = decoded.uid;
+    const { id } = req.body || {};
+    if (!id || typeof id !== 'string') throw httpError(400, 'Token id required');
+    if (!(await rateLimit('mcp-create:' + uid, 10, 60_000)))
+      throw httpError(429, 'Too many tokens. Try again later.');
+    const snap = await sdocGet('mcp_credentials', id);
+    if (!snap.exists || String(snap.data()?.uid) !== String(uid)) {
+      throw httpError(404, 'Token not found');
+    }
+    const prev = snap.data() || {};
+    const cleanScopes = Array.isArray(prev.scopes) ? prev.scopes.filter((s) => MCP_SCOPES.includes(s)) : [];
+    if (!cleanScopes.length) throw httpError(400, 'Token has no valid scopes left.');
+    const jti = 'mcp_' + crypto.randomBytes(12).toString('hex');
+    const token = mintSession(uid, { email: decoded.email || '', tv: await currentTokenVersion(uid), typ: 'mcp', jti, scopes: cleanScopes, expDays: 365 });
+    await sdocSet('mcp_credentials', jti, {
+      uid, name: prev.name || 'MCP token', scopes: cleanScopes,
+      prefix: token.slice(-12),
+      hash: sha256hex(token),
+      createdAt: TS(), lastUsedAt: 0,
+    });
+    await sdocDelete('mcp_credentials', id);
+    return res.status(200).json({ token, id: jti, name: prev.name || 'MCP token', scopes: cleanScopes });
+  }
+
+  throw httpError(400, 'Unknown action. Use register, login, set-password, reset-verify, reset-confirm, mcp-create, mcp-list, mcp-revoke, mcp-rename, mcp-rotate, or mcp-verify.');
 }
 
 function normPhone(v) {
