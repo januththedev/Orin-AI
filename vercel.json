@@ -13,7 +13,7 @@
       "destination": "/januth-nimnal.html"
     },
     {
-      "source": "/((?!api/|sitemap.xml|robots.txt|favicon.svg|sw.js|manifest.json|assets|privacy\\.html|releases\\.html|januth-nimnal\\.html|og-.*\\.png).*)",
+      "source": "/((?!api/|sitemap.xml|robots.txt|favicon.svg|sw.js|manifest.json|assets|privacy\\.html|releases\\.html|januth-nimnal\\.html|google[0-9a-f]+\\.html|og-.*\\.png).*)",
       "destination": "/index.html"
     }
   ]
