@@ -9,7 +9,11 @@
       "destination": "/api/chat?compat=openai&op=models"
     },
     {
-      "source": "/((?!api/|sitemap.xml|robots.txt|favicon.svg|sw.js|manifest.json|assets|privacy\\.html|releases\\.html).*)",
+      "source": "/januth-nimnal",
+      "destination": "/januth-nimnal.html"
+    },
+    {
+      "source": "/((?!api/|sitemap.xml|robots.txt|favicon.svg|sw.js|manifest.json|assets|privacy\\.html|releases\\.html|januth-nimnal\\.html|og-.*\\.png).*)",
       "destination": "/index.html"
     }
   ]
