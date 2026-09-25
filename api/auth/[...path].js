@@ -47,7 +47,7 @@ async function handler(req, res) {
   if (path === 'device' && req.method === 'POST') return deviceHandler(req, res);
   if (path === 'session/introspect' && (req.method === 'GET' || req.method === 'POST')) {
     const identity = await requireUser(req);
-    return res.status(200).json({ uid: identity.uid, email: identity.email || '' });
+    return res.status(200).json({ uid: identity.uid, email: identity.email || '', kind: identity.typ || 'session' });
   }
   if (path === 'mcp/verify' && req.method === 'POST') {
     const identity = await verifyMcpAuthorization(req);

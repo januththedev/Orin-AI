@@ -119,7 +119,7 @@ async function checkSession(token) {
       if (e && e.code === 401) throw e;
       // DB hiccup on a read path: accept the signature (write paths re-check).
     }
-    return { uid, email: payload.email || '', scopes: payload.scopes || [] };
+    return { uid, email: payload.email || '', scopes: payload.scopes || [], typ: 'mcp' };
   }
   let tv = 0;
   try {
@@ -128,7 +128,7 @@ async function checkSession(token) {
   } catch {
     // DB hiccup: fail closed only when we can prove revocation; otherwise
     // accept the signature (endpoints re-check on write paths).
-    return { uid, email: payload.email || '' };
+    return { uid, email: payload.email || '', typ: 'session' };
   }
   if ((Number(payload.tv) || 0) !== tv) throw httpError(401, 'Session revoked — sign in again');
   return { uid, email: payload.email || '' };
@@ -157,7 +157,7 @@ export async function resolveAuth(token) {
   }
   const payload = await verifyNeonToken(token);
   const email = payload.email || payload.primary_email || '';
-  return { uid: 'n_' + sanitizeUid(payload.sub), email: String(email || '') };
+  return { uid: 'n_' + sanitizeUid(payload.sub), email: String(email || ''), typ: 'session' };
 }
 
 /** Returns uid or null — never throws. For endpoints where auth is optional. */
