@@ -6,7 +6,7 @@ import { apiHandler } from './http.js';
 
 const CODE_TTL = 8 * 60_000;
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-const ALLOWED_SCOPES = new Set(['chat:use', 'account:read', 'tools:use', 'code:use']);
+const ALLOWED_SCOPES = new Set(['chat:use', 'account:read', 'tools:use', 'code:use', 'router:manage']);
 const sha256 = (value) => crypto.createHash('sha256').update(String(value)).digest('hex');
 const ip = (req) => String(req.headers?.['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
 const userCode = () => `${[...Array(4)].map(() => ALPHABET[crypto.randomInt(ALPHABET.length)]).join('')}-${[...Array(4)].map(() => ALPHABET[crypto.randomInt(ALPHABET.length)]).join('')}`;
