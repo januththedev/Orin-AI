@@ -13,7 +13,47 @@ import { sdocGet, sdocSet, sdocUpdate, sdocDelete, squery, TS } from './store.js
 
 const CODE_TTL_MS = 10 * 60_000;
 const INBOX_TTL_MS = 15 * 60_000;
+const GRANT_TTL_MS = 15 * 60_000;
+const GRANT_TOOLS = ['read_file', 'list_dir', 'search_files', 'write_file', 'str_replace', 'run_command', 'service_request', 'mcp_list_tools', 'mcp_call'];
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const sha256 = (value) => crypto.createHash('sha256').update(String(value)).digest('hex');
+const b64url = (value) => Buffer.from(value).toString('base64url');
+
+function signGrant(payload, secret) {
+  const encoded = b64url(JSON.stringify(payload));
+  const signature = crypto.createHmac('sha256', String(secret)).update(encoded).digest('base64url');
+  return `${encoded}.${signature}`;
+}
+
+export function createApprovalGrant({ taskId, uid, machineId, instructions, secret, now = Date.now() }) {
+  if (!secret || String(secret).length < 32) throw new Error('PC device signing secret is not configured');
+  return signGrant({
+    v: 1,
+    jti: crypto.randomBytes(16).toString('hex'),
+    taskId: String(taskId),
+    uid: String(uid),
+    machineId: String(machineId),
+    instructionsHash: sha256(instructions),
+    allowedTools: GRANT_TOOLS,
+    exp: Number(now) + GRANT_TTL_MS,
+  }, secret);
+}
+
+export function verifyApprovalGrant(grant, secret, expected = {}, now = Date.now()) {
+  try {
+    const [encoded, signature] = String(grant || '').split('.');
+    if (!encoded || !signature || !secret) return null;
+    const expectedSignature = crypto.createHmac('sha256', String(secret)).update(encoded).digest('base64url');
+    const a = Buffer.from(signature);
+    const b = Buffer.from(expectedSignature);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
+    if (payload.v !== 1 || !payload.jti || !payload.taskId || !payload.uid || !payload.machineId || !payload.instructionsHash || !Array.isArray(payload.allowedTools) || Number(payload.exp) <= Number(now)) return null;
+    for (const [key, value] of Object.entries(expected)) if (value !== undefined && String(payload[key]) !== String(value)) return null;
+    return payload;
+  } catch { return null; }
+}
+
 
 export function randomCode() {
   let code = '';
@@ -52,9 +92,10 @@ export async function claimCode(code, chatId) {
     bot: 'code',
     machineId: already.machineId || '',
     machineName: already.machineName || '',
+    deviceSecret: already.deviceSecret || '',
     createdAt: already.createdAt || TS(),
     linkedAt: TS(),
-  }).catch(() => {});
+  });
   await sdocDelete('pc_links', normalized).catch(() => {});
   return { uid };
 }
@@ -130,13 +171,17 @@ const TASK_TTL_MS = 30 * 60_000;
 /** Register/update this PC under the user's binding. Called on link start. */
 export async function registerMachine(uid, machineId, machineName) {
   const snap = await sdocGet('pc_bindings', String(uid));
+  const previous = snap.exists ? snap.data() : {};
+  const deviceSecret = String(previous.deviceSecret || crypto.randomBytes(32).toString('base64url'));
   const patch = {
     machineId: String(machineId || ''),
     machineName: String(machineName || 'My PC').slice(0, 80),
+    deviceSecret,
     machineSeenAt: TS(),
   };
-  if (snap.exists) await sdocUpdate('pc_bindings', String(uid), patch).catch(() => {});
-  else await sdocSet('pc_bindings', String(uid), { chatId: null, bot: 'code', createdAt: TS(), ...patch }).catch(() => {});
+  if (snap.exists) await sdocUpdate('pc_bindings', String(uid), patch);
+  else await sdocSet('pc_bindings', String(uid), { chatId: null, bot: 'code', createdAt: TS(), ...patch });
+  return { deviceSecret, machineId: patch.machineId };
 }
 
 /** Draft a phone task awaiting the user's confirm tap. Returns runId. */
@@ -205,6 +250,9 @@ export async function claimTask(uid, machineId) {
   const mine =
     queued.find((t) => !t.machineId) || queued.find((t) => String(t.machineId) === String(machineId));
   if (!mine) return null;
+  const binding = await bindingFor(uid);
+  if (!binding || (binding.machineId && String(binding.machineId) !== String(machineId))) return null;
+  if (!binding?.deviceSecret || String(binding.deviceSecret).length < 32) return null;
   // Conditional claim: only one PC wins even if two poll at once.
   const check = await sdocGet('pc_tasks', mine.id);
   if (!check.exists || check.data().status !== 'queued') return null;
@@ -213,13 +261,20 @@ export async function claimTask(uid, machineId) {
     machineId: String(machineId),
     startedAt: TS(),
   }).catch(() => {});
-  return mine;
+  const approvalGrant = createApprovalGrant({
+    taskId: mine.id,
+    uid,
+    machineId,
+    instructions: mine.instructions,
+    secret: binding.deviceSecret,
+  });
+  return { ...mine, machineId: String(machineId), approvalGrant };
 }
 
 /** PC reports back: delivers the result text for the bot to forward. */
-export async function finishTask(taskId, uid, ok, summary) {
+export async function finishTask(taskId, uid, machineId, ok, summary) {
   const snap = await sdocGet('pc_tasks', String(taskId));
-  if (!snap.exists || String(snap.data().uid) !== String(uid)) return null;
+  if (!snap.exists || String(snap.data().uid) !== String(uid) || (machineId && String(snap.data().machineId) !== String(machineId))) return null;
   const data = { status: ok ? 'done' : 'failed', result: String(summary || '').slice(0, 4000) };
   await sdocUpdate('pc_tasks', String(taskId), { ...data, finishedAt: TS() }).catch(() => {});
   return { ...snap.data(), ...data };
