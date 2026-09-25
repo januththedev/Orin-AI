@@ -1,0 +1,3 @@
+import { describe, expect, it } from "vitest";
+import { readFile } from "node:fs/promises";
+describe("Core Vercel function budget", () => { it("consolidates auth routes and excludes legacy function entry files", async () => { const ignored = await readFile(new URL("../../.vercelignore", import.meta.url), "utf8"); for (const file of ["api/auth/password.js", "api/auth/neon.js", "api/auth/device.js"]) expect(ignored).toContain(file); const dispatch = await readFile(new URL("../../api/auth/[...path].js", import.meta.url), "utf8"); expect(dispatch).toMatch(/passwordHandler/); expect(dispatch).toMatch(/createBffSession/); }); });

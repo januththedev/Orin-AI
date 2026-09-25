@@ -16,6 +16,7 @@
 import crypto from 'crypto';
 import { verifyNeonToken } from './neonauth.js';
 import { sdocGet } from './store.js';
+import { resolveBffSession } from './bff.js';
 
 export function httpError(code, message) {
   return Object.assign(new Error(message), { code });
@@ -51,11 +52,13 @@ export function sanitizeUid(v) {
 export function mintSession(uid, { email = '', tv = 0, typ = 'session', jti = '', scopes = [], expDays = 30 } = {}) {
   const now = Math.floor(Date.now() / 1000);
   const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const requestedDays = Number(expDays);
+  const lifetimeSeconds = Number.isFinite(requestedDays) && requestedDays > 0 ? requestedDays * 24 * 3600 : 30 * 24 * 3600;
   const body = b64url(JSON.stringify({
     iss: 'orin', uid: String(uid), email: String(email || ''),
     tv: Number(tv) || 0, typ, jti: String(jti || ''),
     scopes: Array.isArray(scopes) ? scopes.map(String) : [],
-    iat: now, exp: now + Math.max(1, Number(expDays) || 30) * 24 * 3600,
+    iat: now, exp: now + Math.max(60, lifetimeSeconds),
   }));
   const sig = b64url(crypto.createHmac('sha256', sessionSecret()).update(`${header}.${body}`).digest());
   return `${header}.${body}.${sig}`;
@@ -159,6 +162,7 @@ export async function resolveAuth(token) {
 
 /** Returns uid or null — never throws. For endpoints where auth is optional. */
 export async function verifyUser(req) {
+  try { return (await resolveBffSession(req)).uid; } catch {}
   const token = bearerToken(req);
   if (!token) return null;
   try {
@@ -170,6 +174,11 @@ export async function verifyUser(req) {
 
 /** Returns { uid, email } or throws { code: 401 }. For endpoints where auth is required. */
 export async function requireUser(req) {
+  try {
+    return await resolveBffSession(req);
+  } catch (e) {
+    if (e?.code !== 401) throw e;
+  }
   const token = bearerToken(req);
   if (!token) throw httpError(401, 'Unauthorized');
   try {

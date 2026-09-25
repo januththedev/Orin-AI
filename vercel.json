@@ -1,20 +1,21 @@
 {
+  "functions": {
+    "api/auth/[...path].js": { "maxDuration": 30 },
+    "api/chat.js": { "maxDuration": 60 },
+    "api/me.js": { "maxDuration": 30 }
+  },
   "rewrites": [
+    { "source": "/januth-nimnal", "destination": "/januth-nimnal.html" },
+    { "source": "/((?!api/|sitemap.xml|robots.txt|favicon.svg|sw.js|manifest.json|assets|privacy\\.html|releases\\.html|januth-nimnal\\.html|google[0-9a-f]+\\.html|og-.*\\.png).*)", "destination": "/index.html" }
+  ],
+  "headers": [
     {
-      "source": "/api/openai/v1/chat/completions",
-      "destination": "/api/chat?compat=openai&op=chat"
-    },
-    {
-      "source": "/api/openai/v1/models",
-      "destination": "/api/chat?compat=openai&op=models"
-    },
-    {
-      "source": "/januth-nimnal",
-      "destination": "/januth-nimnal.html"
-    },
-    {
-      "source": "/((?!api/|sitemap.xml|robots.txt|favicon.svg|sw.js|manifest.json|assets|privacy\\.html|releases\\.html|januth-nimnal\\.html|google[0-9a-f]+\\.html|og-.*\\.png).*)",
-      "destination": "/index.html"
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(self), geolocation=()" }
+      ]
     }
   ]
 }

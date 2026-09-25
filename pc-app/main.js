@@ -4,7 +4,7 @@
  */
 const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 
 const APP_URL = 'https://orinai.org';
@@ -84,9 +84,8 @@ function createTray() {
 
 function findPython() {
   const candidates = ['python3','python','py'];
-  const { execSync } = require('child_process');
   for (const c of candidates) {
-    try { execSync(`${c} --version`, { stdio:'ignore' }); return c; } catch {}
+    try { const result = spawnSync(c, ['--version'], { stdio: 'ignore', shell: false }); if (result.status === 0) return c; } catch {}
   }
   return 'python';
 }

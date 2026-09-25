@@ -4,6 +4,7 @@ import { sessionService } from "./sessionService";
 import { cacheService, CacheKey } from "./cacheService";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+function csrfToken(): string { const match = /(?:^|;\s*)orin_csrf=([^;]+)/.exec(document.cookie); return match ? decodeURIComponent(match[1]) : ''; }
 const MEMORY_UPDATE_COOLDOWN_MS = 2 * 60 * 1000; // at most once per 2 minutes per user
 
 /** Only run memory update when the user message suggests something worth remembering (personal info, preferences). */
@@ -195,6 +196,7 @@ export class GeminiService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-Orin-CSRF': csrfToken(),
           ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
         },
         signal: options.signal,
@@ -299,15 +301,14 @@ export class GeminiService {
       const plan = this.currentUser?.plan?.toLowerCase() ?? 'free';
       const r = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
+        headers: { 'Content-Type': 'application/json', 'X-Orin-CSRF': csrfToken(), ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
         signal,
         body: JSON.stringify({ mode: 'image', prompt, aspectRatio, referenceImage: referenceImage || null, plan }),
       });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || 'Image generation failed'); }
       const data = await r.json();
       if (!this.currentUser) { this.resetGuestWindows(); this.guestUsage.uploadCount++; }
-      else { sessionService.incrementUsage(this.currentUser.id, 'images').catch(() => {}); }
-      return data.dataUrl;
+      return data.url || data.dataUrl;
     } catch (err: any) {
       const msg = err?.message || String(err);
       throw new AppError(msg.includes('limit') ? msg : `Generation failed: ${msg}`, 'generic');
@@ -349,7 +350,7 @@ export class GeminiService {
       const plan = this.currentUser?.plan?.toLowerCase() ?? 'free';
       const r = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
+        headers: { 'Content-Type': 'application/json', 'X-Orin-CSRF': csrfToken(), ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
         body: JSON.stringify({ mode: 'video', prompt, aspectRatio, resolution, image: image || null, lastFrame: lastFrame || null, video: video || null, plan }),
       });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new AppError(e.error || 'Video generation failed', 'generic'); }
@@ -378,7 +379,7 @@ export class GeminiService {
     voiceName?: string;
     multiSpeaker?: { speaker: string; voiceName: string }[];
     model?: 'flash' | 'pro';
-  }): Promise<{ audioBase64: string; mime: string }> {
+  }): Promise<{ audioBase64: string; mime: string; mode?: 'browser' }> {
     const { text, stylePrompt } = options;
     if (!text.trim()) throw new AppError("No text to speak.", 'generic');
 
@@ -386,11 +387,18 @@ export class GeminiService {
     try { idToken = await sessionService.getIdToken(); } catch {}
     const r = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
+      headers: { 'Content-Type': 'application/json', 'X-Orin-CSRF': csrfToken(), ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
       body: JSON.stringify({ mode: 'tts', text, stylePrompt }),
     });
     if (!r.ok) throw new AppError((await r.json().catch(() => ({}))).error || 'TTS failed', 'generic');
     const d = await r.json();
+    if (d.mode === 'browser' && typeof d.text === 'string' && 'speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(d.text);
+      utterance.lang = d.language === 'si' ? 'si-LK' : d.language === 'ta' ? 'ta-LK' : 'en-LK';
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+      return { audioBase64: '', mime: 'browser', mode: 'browser' };
+    }
     if (!d.audioBase64) throw new AppError('No audio generated.', 'generic');
     return { audioBase64: d.audioBase64, mime: d.mime || 'audio/mpeg' };
   }
@@ -401,7 +409,7 @@ export class GeminiService {
       try { idToken = await sessionService.getIdToken(); } catch {}
       const r = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
+        headers: { 'Content-Type': 'application/json', 'X-Orin-CSRF': csrfToken(), ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
         body: JSON.stringify({ mode: 'memory-update', previousMemory, userPrompt, assistantReply, uid }),
       });
       if (!r.ok) return;
@@ -418,7 +426,7 @@ export class GeminiService {
       try { idToken = await sessionService.getIdToken(); } catch {}
       const r = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
+        headers: { 'Content-Type': 'application/json', 'X-Orin-CSRF': csrfToken(), ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
         body: JSON.stringify({ mode: 'title', firstMessage: messages[0]?.content || '' }),
       });
       if (!r.ok) return 'New Chat';
@@ -434,7 +442,7 @@ export class GeminiService {
       try { idToken = await sessionService.getIdToken(); } catch {}
       const r = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
+        headers: { 'Content-Type': 'application/json', 'X-Orin-CSRF': csrfToken(), ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
         body: JSON.stringify({ mode: 'embed', texts, outputDimensionality: options?.outputDimensionality }),
       });
       if (!r.ok) return texts.map(() => []);
@@ -449,7 +457,7 @@ export class GeminiService {
       try { idToken = await sessionService.getIdToken(); } catch {}
       const r = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
+        headers: { 'Content-Type': 'application/json', 'X-Orin-CSRF': csrfToken(), ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
         body: JSON.stringify({ mode: 'embed', imageBase64, mimeType }),
       });
       if (!r.ok) return [];
@@ -470,7 +478,7 @@ export class GeminiService {
       try { idToken = await sessionService.getIdToken(); } catch {}
       const r = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
+        headers: { 'Content-Type': 'application/json', 'X-Orin-CSRF': csrfToken(), ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
         body: JSON.stringify({ mode: 'math-extract', text: text || '', fileData: fileData || null }),
       });
       if (!r.ok) throw new Error('Math extract failed');
