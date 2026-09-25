@@ -19,12 +19,18 @@
 import { requireUser, httpError } from './_lib/auth.js';
 import { sadd, sdocGet, sdocSet, TS } from './_lib/store.js';
 import { apiHandler } from './_lib/http.js';
+import { requireCsrf } from './_lib/bff.js';
 
 export const config = { maxDuration: 30 };
 
 const MEMORY_MAX = 2000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const THIRTY_DAYS_MS = 30 * DAY_MS;
+
+function csrfFromReq(req) {
+  const match = /(?:^|;\s*)orin_csrf=([^;]+)/.exec(String(req.headers?.cookie || ''));
+  return match ? decodeURIComponent(match[1]) : '';
+}
 
 const hasUserMessage = (c) =>
   Array.isArray(c?.messages) && c.messages.some((m) => m?.role === 'user');
@@ -56,12 +62,15 @@ async function handler(req, res) {
     const snap = await sdocGet('users', uid);
     const data = snap.exists ? (snap.data() || {}) : {};
     return res.status(200).json({
+      user: { id: uid, name: data.name || '', email: data.email || email || '', avatar: data.avatar ?? null },
+      csrf: csrfFromReq(req),
       history: normalizeHistory(data.historyBlob),
       memory: typeof data.memory === 'string' ? data.memory : '',
     });
   }
 
   if (req.method !== 'POST') throw httpError(405, 'GET/POST only');
+  requireCsrf(req);
   const { action } = req.body || {};
 
   // ── SYNC: resolve session → UserAccount ──────────────────────────────────
@@ -142,6 +151,7 @@ async function handler(req, res) {
       role: userData.role || 'visitor',
       approved: userData.approved || false,
       dailyUsage: userData.usage || { text: 0, images: 0, videos: 0 },
+      csrf: csrfFromReq(req),
       ...(userData.theme ? { theme: userData.theme } : {}),
     });
   }

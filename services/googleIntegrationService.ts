@@ -141,7 +141,10 @@ export async function getValidToken(module: GoogleModuleId): Promise<string | nu
 export function getModuleToken(_module: GoogleModuleId): string | null { return null; }
 
 // ── Google API helpers (called with token from getValidToken) ─────────────────
+const GOOGLE_API_ORIGINS = new Set(['https://gmail.googleapis.com', 'https://www.googleapis.com', 'https://docs.googleapis.com', 'https://slides.googleapis.com', 'https://sheets.googleapis.com', 'https://drive.googleapis.com']);
 async function gFetch(module: GoogleModuleId, url: string, opts?: RequestInit): Promise<any> {
+  const target = new URL(url);
+  if (target.protocol !== 'https:' || !GOOGLE_API_ORIGINS.has(target.origin)) throw new Error('Google API URL is not allowed');
   const token = await getValidToken(module);
   if (!token) throw new Error(`No token for ${module}. Grant access first.`);
   const res = await fetch(url, { ...opts, headers: { ...(opts?.headers || {}), Authorization: `Bearer ${token}` } });

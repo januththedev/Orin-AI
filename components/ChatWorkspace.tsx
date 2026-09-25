@@ -353,7 +353,8 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
     setSpeakingId(msg.id);
     try {
       const plain = String(msg.content || '').replace(/[*_`#>\[\]()]/g, '').slice(0, 4000);
-      const { audioBase64, mime } = await geminiService.generateTts({ text: plain });
+      const { audioBase64, mime, mode } = await geminiService.generateTts({ text: plain });
+      if (mode === 'browser') { setSpeakingId(null); return; }
       const audio = new Audio(`data:${mime};base64,${audioBase64}`);
       audioRef.current = audio;
       audio.onended = () => setSpeakingId((cur) => (cur === msg.id ? null : cur));
@@ -659,7 +660,7 @@ const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
             </div>
           </div>
           <p className="text-center text-[10px] text-stone-400 dark:text-stone-600 mt-2 select-none">
-            Free & unlimited · Text by Orin Cloud · Images by Pollinations
+            Free while supported · Secure account session · Router and Tools
           </p>
         </div>
       </div>

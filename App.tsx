@@ -253,6 +253,14 @@ const App: React.FC = () => {
       if (error) setAuthError(error);
     }).catch(() => {});
 
+    sessionService.bootstrap().then((restored) => {
+      if (restored && !authHandled) {
+        authHandled = true;
+        const profile = sessionService.currentUser();
+        if (profile) void applyUserRef.current({ uid: profile.uid, email: profile.email, displayName: profile.displayName, photoURL: profile.photoURL });
+      }
+    }).catch(() => {});
+
     return () => {
       unsubscribe?.();
       clearTimeout(safetyTimeout);

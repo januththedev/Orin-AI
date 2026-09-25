@@ -84,7 +84,8 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ onClose, lang, initialM
     if (!clip.trim()) return;
     setSpeaking(true);
     try {
-      const { audioBase64, mime } = await geminiService.generateTts({ text: clip });
+      const { audioBase64, mime, mode } = await geminiService.generateTts({ text: clip });
+      if (mode === 'browser') { setSpeaking(false); return; }
       const audio = new Audio(`data:${mime};base64,${audioBase64}`);
       audioRef.current = audio;
       audio.onended = () => setSpeaking(false);

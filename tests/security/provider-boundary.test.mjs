@@ -1,0 +1,3 @@
+import { describe, expect, it } from "vitest";
+import { readFile } from "node:fs/promises";
+describe("provider boundary", () => { it("routes v2 text through fixed Router and private search through POST Tools", async () => { const source = await readFile(new URL("../../api/_lib/chatV2.js", import.meta.url), "utf8"); expect(source).toMatch(/https:\/\/router\.orinai\.org/); expect(source).toMatch(/https:\/\/tools\.orinai\.org/); expect(source).not.toMatch(/ORIN_ROUTER_BASE_URL|ORIN_TOOLS_BASE_URL/); expect(source).toMatch(/x-orin-service-assertion/); expect(source).not.toMatch(/image\.pollinations\.ai|api\.openai\.com|generativelanguage\.googleapis\.com/); }); });

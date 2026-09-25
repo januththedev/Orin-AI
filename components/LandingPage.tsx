@@ -22,7 +22,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ lang, user, onStartChat, onLo
   const [prompt, setPrompt] = useState('');
 
   const cards = [
-    { hash: '#chat', icon: 'fa-comments', title: 'Start chatting', desc: 'Free & unlimited text with Orin Cloud.' },
+    { hash: '#chat', icon: 'fa-comments', title: 'Start chatting', desc: 'Free models while supported, with one secure Orin account.' },
     { hash: '#voice', icon: 'fa-microphone', title: 'Voice', desc: 'Talk to Orin — it listens and speaks back.' },
     { hash: '#translate', icon: 'fa-language', title: 'Live Translate', desc: 'English · Sinhala · Tamil, in real time.' },
     { hash: '#downloads', icon: 'fa-download', title: t.downloads, desc: 'Get the Orin desktop app for Windows.' },
@@ -73,8 +73,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ lang, user, onStartChat, onLo
             {t.slogan || 'Your AI, in your language.'}
           </h1>
           <p className="mt-4 text-sm md:text-base text-stone-500 dark:text-stone-400 max-w-xl mx-auto leading-relaxed">
-            Chat, create images, speak and translate — completely free, in English, Sinhala and Tamil.
-            From a Sri Lankan to Sri Lankans.
+            Chat, create images, speak and translate in English, Sinhala and Tamil.
+            Free models are available while supported, with fair-use limits.
           </p>
 
           {/* Prompt box */}
@@ -96,7 +96,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ lang, user, onStartChat, onLo
             </button>
           </div>
           <p className="mt-3 text-[11px] text-stone-400 dark:text-stone-500 font-semibold select-none">
-            No sign-up needed · Free forever · Runs on Orin Cloud
+            One Orin account · Free models while supported · Runs on Orin Cloud
           </p>
         </section>
 

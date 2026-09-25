@@ -1,7 +1,3 @@
-importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js');
-importScripts('/firebase-config.js');
-
 const RAW_VERSION = '%SW_VERSION%';
 // In dev, Vite serves public/sw.js directly and the placeholder is not replaced.
 // Fallback to a stable "dev" cache name there to avoid churning caches.
@@ -11,19 +7,6 @@ const STATIC_ASSETS = [
   '/index.html',
   '/favicon.svg'
 ];
-
-try {
-  firebase.initializeApp(self.FIREBASE_CONFIG);
-  const messaging = firebase.messaging();
-  messaging.onBackgroundMessage((payload) => {
-    const title = payload.notification?.title || 'Orin AI';
-    const options = {
-      body: payload.notification?.body || '',
-      icon: '/favicon.svg'
-    };
-    self.registration.showNotification(title, options);
-  });
-} catch (e) {}
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
