@@ -1,8 +1,9 @@
 import crypto from 'node:crypto';
+import { SignJWT } from 'jose';
 import passwordHandler from '../_lib/legacyPassword.js';
 import neonHandler from '../_lib/legacyNeon.js';
 import deviceHandler from '../_lib/legacyDevice.js';
-import { verifySessionPayload, requireUser, httpError } from '../_lib/auth.js';
+import { verifySessionPayload, bearerClaims, requireUser, httpError } from '../_lib/auth.js';
 import { createBffSession, resolveBffSession, rotateBffSession, revokeBffSession, requireCsrf } from '../_lib/bff.js';
 import { handleMcpManagement, verifyMcpAuthorization } from '../_lib/mcpAuth.js';
 import { apiHandler } from '../_lib/http.js';
@@ -49,6 +50,27 @@ async function handler(req, res) {
   if (path === 'session/introspect' && (req.method === 'GET' || req.method === 'POST')) {
     const identity = await requireUser(req);
     return res.status(200).json({ uid: identity.uid, email: identity.email || '', kind: identity.typ || 'session' });
+  }
+  if (path === 'router/assertion' && req.method === 'POST') {
+    const claims = bearerClaims(req);
+    if (claims?.typ === 'device') {
+      if (!claims.scopes?.includes('router:manage')) throw httpError(403, 'Device credential lacks Router management scope.');
+    } else {
+      requireCsrf(req);
+    }
+    const identity = await requireUser(req);
+    const secret = String(process.env.ORIN_ROUTER_SERVICE_SIGNING_KEY || '');
+    if (secret.length < 32) throw httpError(503, 'Router service signing is not configured.');
+    const now = Math.floor(Date.now() / 1000);
+    const token = await new SignJWT({
+      typ: 'service', scope: 'router:manage', account_id: String(identity.uid),
+      usage_reservation_id: `mgmt_${crypto.randomUUID()}`,
+    })
+      .setProtectedHeader({ alg: 'HS256', kid: process.env.ORIN_SERVICE_KEY_ID || 'core-v1' })
+      .setIssuer('orin-core').setAudience('orin-router').setSubject(String(identity.uid))
+      .setJti(crypto.randomUUID()).setIssuedAt(now).setExpirationTime(now + 300)
+      .sign(new TextEncoder().encode(secret));
+    return res.status(200).json({ access_token: token, token_type: 'Bearer', expires_in: 300, scope: 'router:manage' });
   }
   if (path === 'introspect' && req.method === 'POST') {
     const expectedId = String(process.env.ORIN_CORE_CLIENT_ID || '');
