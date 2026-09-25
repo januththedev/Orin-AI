@@ -102,6 +102,29 @@ export function verifySessionPayload(token) {
   return verifySessionSignature(token);
 }
 
+/**
+ * Read signed claims from a Bearer header without touching the database.
+ * Returns null for a missing, malformed, or foreign credential; callers still
+ * use requireUser for the authoritative revocation check.
+ */
+export function bearerClaims(req) {
+  const token = bearerToken(req);
+  if (!token) return null;
+  try { return verifySessionPayload(token); } catch { return null; }
+}
+
+export function isDeviceBearer(req) {
+  return bearerClaims(req)?.typ === 'device';
+}
+
+export function requireDeviceScope(req, allowed) {
+  const claims = bearerClaims(req);
+  if (claims?.typ !== 'device') return false;
+  const scopes = Array.isArray(claims.scopes) ? claims.scopes : [];
+  if (!allowed.some((scope) => scopes.includes(scope))) throw httpError(403, 'Device scope is not allowed for this operation.');
+  return true;
+}
+
 /** Full session check incl. revocation (tokenVersion / MCP registry). Throws 401. */
 async function checkSession(token) {
   const payload = verifySessionSignature(token);
@@ -128,10 +151,10 @@ async function checkSession(token) {
   } catch {
     // DB hiccup: fail closed only when we can prove revocation; otherwise
     // accept the signature (endpoints re-check on write paths).
-    return { uid, email: payload.email || '', typ: 'session' };
+    return { uid, email: payload.email || '', typ: payload.typ || 'session', scopes: payload.scopes || [] };
   }
   if ((Number(payload.tv) || 0) !== tv) throw httpError(401, 'Session revoked — sign in again');
-  return { uid, email: payload.email || '' };
+  return { uid, email: payload.email || '', typ: payload.typ || 'session', scopes: payload.scopes || [] };
 }
 
 /**
