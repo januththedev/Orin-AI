@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import passwordHandler from '../_lib/legacyPassword.js';
 import neonHandler from '../_lib/legacyNeon.js';
 import deviceHandler from '../_lib/legacyDevice.js';
@@ -48,6 +49,18 @@ async function handler(req, res) {
   if (path === 'session/introspect' && (req.method === 'GET' || req.method === 'POST')) {
     const identity = await requireUser(req);
     return res.status(200).json({ uid: identity.uid, email: identity.email || '', kind: identity.typ || 'session' });
+  }
+  if (path === 'introspect' && req.method === 'POST') {
+    const expectedId = String(process.env.ORIN_CORE_CLIENT_ID || '');
+    const expectedSecret = String(process.env.ORIN_CORE_CLIENT_SECRET || '');
+    const suppliedId = String(req.headers?.['x-orin-client-id'] || '');
+    const authorization = String(req.headers?.authorization || '');
+    const suppliedSecret = authorization.replace(/^Bearer\s+/i, '');
+    if (!expectedId || !expectedSecret || suppliedId !== expectedId || suppliedSecret.length !== expectedSecret.length || !crypto.timingSafeEqual(Buffer.from(suppliedSecret), Buffer.from(expectedSecret))) throw httpError(401, 'Service introspection authentication failed.');
+    const claims = verifySessionPayload(String(req.body?.token || ''));
+    if (claims.typ !== 'service' || !claims.jti || typeof claims.account_id !== 'string') throw httpError(401, 'Invalid service assertion.');
+    const scopes = Array.isArray(claims.scope) ? claims.scope.map(String) : String(claims.scope || '').split(/\s+/).filter(Boolean);
+    return res.status(200).json({ active: true, account_id: claims.account_id, scopes, usage_reservation_id: claims.usage_reservation_id || null });
   }
   if (path === 'mcp/verify' && req.method === 'POST') {
     const identity = await verifyMcpAuthorization(req);
