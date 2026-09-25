@@ -38,7 +38,7 @@ export async function resolveBffSession(req) {
   const user = await sdocGet('users', String(session.uid));
   if (!user.exists) throw Object.assign(new Error('Unauthorized'), { code: 401 });
   await sdocUpdate('bff_sessions', hash, { lastUsedAt: now, idleExpiresAt: Math.min(Number(session.absoluteExpiresAt), now + 7 * DAY_MS) }).catch(() => {});
-  return { id: hash, uid: String(session.uid), email: String(session.email || user.data()?.email || ''), product: String(session.product || 'orin-chat'), generation: Number(session.generation || 1) };
+  return { id: hash, uid: String(session.uid), email: String(session.email || user.data()?.email || ''), product: String(session.product || 'orin-chat'), generation: Number(session.generation || 1), typ: 'session' };
 }
 export async function rotateBffSession(req, res) {
   const session = await resolveBffSession(req);

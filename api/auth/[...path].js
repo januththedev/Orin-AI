@@ -1,7 +1,7 @@
 import passwordHandler from '../_lib/legacyPassword.js';
 import neonHandler from '../_lib/legacyNeon.js';
 import deviceHandler from '../_lib/legacyDevice.js';
-import { verifySessionPayload, httpError } from '../_lib/auth.js';
+import { verifySessionPayload, requireUser, httpError } from '../_lib/auth.js';
 import { createBffSession, resolveBffSession, rotateBffSession, revokeBffSession, requireCsrf } from '../_lib/bff.js';
 import { handleMcpManagement, verifyMcpAuthorization } from '../_lib/mcpAuth.js';
 import { apiHandler } from '../_lib/http.js';
@@ -45,6 +45,10 @@ async function handler(req, res) {
     return res.status(200).json(await establishBff(req, res, state.body));
   }
   if (path === 'device' && req.method === 'POST') return deviceHandler(req, res);
+  if (path === 'session/introspect' && (req.method === 'GET' || req.method === 'POST')) {
+    const identity = await requireUser(req);
+    return res.status(200).json({ uid: identity.uid, email: identity.email || '', kind: identity.typ || 'session' });
+  }
   if (path === 'mcp/verify' && req.method === 'POST') {
     const identity = await verifyMcpAuthorization(req);
     return res.status(200).json({ uid: identity.uid, scopes: identity.scopes });
