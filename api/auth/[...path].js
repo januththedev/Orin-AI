@@ -3,6 +3,7 @@ import neonHandler from '../_lib/legacyNeon.js';
 import deviceHandler from '../_lib/legacyDevice.js';
 import { verifySessionPayload, httpError } from '../_lib/auth.js';
 import { createBffSession, resolveBffSession, rotateBffSession, revokeBffSession, requireCsrf } from '../_lib/bff.js';
+import { handleMcpManagement, verifyMcpAuthorization } from '../_lib/mcpAuth.js';
 import { apiHandler } from '../_lib/http.js';
 
 export const config = { maxDuration: 30 };
@@ -44,6 +45,14 @@ async function handler(req, res) {
     return res.status(200).json(await establishBff(req, res, state.body));
   }
   if (path === 'device' && req.method === 'POST') return deviceHandler(req, res);
+  if (path === 'mcp/verify' && req.method === 'POST') {
+    const identity = await verifyMcpAuthorization(req);
+    return res.status(200).json({ uid: identity.uid, scopes: identity.scopes });
+  }
+  if (path === 'mcp' && req.method === 'POST') {
+    requireCsrf(req);
+    return handleMcpManagement(req, res, String(req.body?.action || ''));
+  }
   if (path === 'session/rotate' && req.method === 'POST') { requireCsrf(req); return res.status(200).json(await rotateBffSession(req, res)); }
   if (path === 'logout' && req.method === 'POST') { requireCsrf(req); return res.status(200).json(await revokeBffSession(req, res, false)); }
   if (path === 'account/sessions' && req.method === 'GET') return res.status(200).json({ sessions: [await resolveBffSession(req)] });

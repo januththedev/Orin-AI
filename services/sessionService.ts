@@ -22,11 +22,11 @@ class SessionService {
   async requestPasswordReset(name: string, email: string, phone: string) { const data = await request('/api/auth/password', { method: 'POST', body: JSON.stringify({ action: 'reset-verify', name, email, phone }) }); return data.resetToken; }
   async confirmPasswordReset(resetToken: string, password: string) { await request('/api/auth/password', { method: 'POST', body: JSON.stringify({ action: 'reset-confirm', resetToken, password }) }); }
   async setPassword(password: string) { await request('/api/auth/password', { method: 'POST', body: JSON.stringify({ action: 'set-password', password }) }); }
-  async mcpCreate(name: string, scopes: string[]) { return request('/api/auth/password', { method: 'POST', body: JSON.stringify({ action: 'mcp-create', name, scopes }) }); }
-  async mcpList() { const data = await request('/api/auth/password', { method: 'POST', body: JSON.stringify({ action: 'mcp-list' }) }); return data.tokens || []; }
-  async mcpRevoke(id: string) { await request('/api/auth/password', { method: 'POST', body: JSON.stringify({ action: 'mcp-revoke', id }) }); }
-  async mcpRename(id: string, name: string) { await request('/api/auth/password', { method: 'POST', body: JSON.stringify({ action: 'mcp-rename', id, name }) }); }
-  async mcpRotate(id: string) { return request('/api/auth/password', { method: 'POST', body: JSON.stringify({ action: 'mcp-rotate', id }) }); }
+  async mcpCreate(name: string, scopes: string[]) { return request('/api/auth/mcp', { method: 'POST', body: JSON.stringify({ action: 'create', name, scopes }) }); }
+  async mcpList() { const data = await request('/api/auth/mcp', { method: 'POST', body: JSON.stringify({ action: 'list' }) }); return data.tokens || []; }
+  async mcpRevoke(id: string) { await request('/api/auth/mcp', { method: 'POST', body: JSON.stringify({ action: 'revoke', id }) }); }
+  async mcpRename(id: string, name: string) { await request('/api/auth/mcp', { method: 'POST', body: JSON.stringify({ action: 'rename', id, name }) }); }
+  async mcpRotate(id: string) { return request('/api/auth/mcp', { method: 'POST', body: JSON.stringify({ action: 'rotate', id }) }); }
   async syncUserSession(uid?: string, email?: string, photoURL?: string | null): Promise<UserAccount> { return request('/api/me', { method: 'POST', body: JSON.stringify({ action: 'sync', uid, email, photoURL }) }); }
   async saveHistory(uid: string, history: Conversation[], deletedIds: string[] = []) { await request('/api/me', { method: 'POST', body: JSON.stringify({ action: 'save', history, deletedIds }) }); }
   async getHistory(uid?: string): Promise<Conversation[] | null> { try { const data = await request('/api/me'); return (data.history || []).map((item: any) => ({ ...item, id: item.id ?? String(Date.now()), title: item.title ?? 'Chat', mode: item.mode ?? 'chat', timestamp: item.timestamp ? new Date(item.timestamp) : new Date(), messages: (item.messages || []).map((message: any) => ({ ...message, timestamp: message.timestamp ? new Date(message.timestamp) : new Date() })) })); } catch { return null; } }

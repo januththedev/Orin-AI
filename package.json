@@ -1,7 +1,7 @@
 {
   "name": "orin-ai-workspace",
   "private": true,
-  "version": "4.1.0",
+  "version": "4.1.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "platform:build": "npm --prefix vendor/orin-platform ci && npm --prefix vendor/orin-platform run build",
     "typecheck": "tsc --noEmit",
-    "test": "npm run platform:build && vitest run",
+    "test": "npm run platform:build && vitest run --maxWorkers=1",
     "test:unit": "vitest run tests/unit",
     "test:security": "vitest run tests/security",
     "test:contract": "vitest run tests/contract",
