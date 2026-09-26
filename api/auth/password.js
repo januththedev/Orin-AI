@@ -95,21 +95,24 @@ async function writeLookups(emailNorm, phoneNorm, uid) {
   }
 }
 
-async function handler(req, res) {
-  if (req.method !== 'POST') throw httpError(405, 'POST only');
-  const { action } = req.body || {};
+/**
+ * Credential verification, shared by the JSON API and the browser sign-in page.
+ *
+ * Both surfaces must rate-limit, hash-compare, and shape errors identically —
+ * if they drift, one of them becomes the weaker door. Returning the user rather
+ * than writing a response is what lets the browser page set its own cookie.
+ */
+export async function authenticateWithPassword(body, ip) {
+  const action = body?.action;
 
-  // ── REGISTER ─────────────────────────────────────────────────────────────
   if (action === 'register') {
-    if (!(await rateLimit('auth-register:' + clientIp(req), 10, 60 * 60_000)))
+    if (!(await rateLimit('auth-register:' + ip, 10, 60 * 60_000)))
       throw httpError(429, 'Too many signup attempts. Try again later.');
 
-    const b = req.body || {};
-    // Legacy shape {identifier} maps onto the new explicit fields.
-    const emailRaw = b.email ?? (b.identifier && String(b.identifier).includes('@') ? b.identifier : undefined);
-    const phoneRaw = b.phone ?? (b.identifier && !String(b.identifier).includes('@') ? b.identifier : undefined);
+    const emailRaw = body.email ?? (body.identifier && String(body.identifier).includes('@') ? body.identifier : undefined);
+    const phoneRaw = body.phone ?? (body.identifier && !String(body.identifier).includes('@') ? body.identifier : undefined);
 
-    const nameErr = namePolicyError(b.name);
+    const nameErr = namePolicyError(body.name);
     if (nameErr) throw httpError(400, nameErr);
 
     const emailNorm = emailRaw ? normalizeIdentifier(emailRaw) : null;
@@ -119,9 +122,9 @@ async function handler(req, res) {
     if (!emailNorm && !phoneNorm) throw httpError(400, 'Email is required.');
     if (!phoneNorm) throw httpError(400, 'Phone number is required.');
 
-    const pwErr = passwordPolicyError(b.password);
+    const pwErr = passwordPolicyError(body.password);
     if (pwErr) throw httpError(400, pwErr);
-    if (typeof b.confirmPassword === 'string' && b.confirmPassword !== b.password)
+    if (typeof body.confirmPassword === 'string' && body.confirmPassword !== body.password)
       throw httpError(400, 'Passwords do not match.');
 
     await assertIdentifiersFree(
@@ -129,11 +132,10 @@ async function handler(req, res) {
       phoneNorm
     );
 
-    // New Orin identity: uid + Neon rows (no external auth provider involved).
     const uid = 'pw_' + crypto.randomBytes(12).toString('hex');
     try {
       await sdocSet('password_credentials', uid, {
-        hash: hashPassword(b.password),
+        hash: hashPassword(body.password),
         identifierType: 'email',
         email: emailNorm ? emailNorm.value : null,
         phone: phoneNorm ? phoneNorm.value : null,
@@ -142,23 +144,21 @@ async function handler(req, res) {
       });
       await writeLookups(emailNorm, phoneNorm, uid);
       await ensureProfile(uid, {
-        name: String(b.name).trim(),
+        name: String(body.name).trim(),
         email: emailNorm ? emailNorm.value : null,
         phone: phoneNorm ? phoneNorm.value : null,
       });
-
       const sessionToken = await issueSession(uid, emailNorm ? emailNorm.value : '');
-      return res.status(200).json({
+      return {
         sessionToken,
         user: {
           id: uid,
-          name: String(b.name).trim(),
+          name: String(body.name).trim(),
           email: emailNorm ? emailNorm.value : '',
           phone: phoneNorm ? phoneNorm.value : '',
         },
-      });
+      };
     } catch (e) {
-      // Best-effort rollback of the half-created identity.
       try {
         await sdocDelete('password_credentials', uid);
         if (emailNorm) await sdocDelete('auth_identifiers', identifierKey(emailNorm));
@@ -169,13 +169,11 @@ async function handler(req, res) {
     }
   }
 
-  // ── LOGIN ────────────────────────────────────────────────────────────────
   if (action === 'login') {
-    const ip = clientIp(req);
     if (!(await rateLimit('auth-login-ip:' + ip, IP_ATTEMPTS_LIMIT, IP_WINDOW_MS)))
       throw httpError(429, 'Too many attempts from this network. Try again later.');
 
-    const { identifier, password } = req.body || {};
+    const { identifier, password } = body || {};
     const norm = normalizeIdentifier(identifier);
     if (!norm || typeof password !== 'string') throw httpError(400, 'Email/phone and password are required.');
 
@@ -183,6 +181,8 @@ async function handler(req, res) {
       throw httpError(429, 'Too many failed attempts. Try again in 15 minutes.');
 
     const lookupSnap = await sdocGet('auth_identifiers', identifierKey(norm));
+    // One message for "no such account" and "wrong password", so the endpoint
+    // cannot be used to enumerate which emails have accounts.
     if (!lookupSnap.exists) throw httpError(401, 'Invalid credentials');
     const uid = lookupSnap.data().uid;
 
@@ -193,17 +193,32 @@ async function handler(req, res) {
 
     const profileSnap = await sdocGet('users', String(uid));
     const p = profileSnap.data() || {};
-    const sessionToken = await issueSession(String(uid), p.email || credSnap.data().email || '');
-    return res.status(200).json({
+    const email = p.email || credSnap.data().email || '';
+    const sessionToken = await issueSession(String(uid), email);
+    return {
       sessionToken,
       user: {
-        id: uid,
+        id: String(uid),
         name: p.name || '',
-        email: p.email || credSnap.data().email || '',
+        email,
         phone: p.phone || credSnap.data().phone || '',
       },
-    });
+    };
   }
+
+  throw httpError(400, 'Unsupported action.');
+}
+
+async function handler(req, res) {
+  if (req.method !== 'POST') throw httpError(405, 'POST only');
+  const { action } = req.body || {};
+
+  // register and login share one implementation with the browser sign-in page
+  // (api/signin.js), so rate limiting and error shapes cannot drift apart.
+  if (action === 'register' || action === 'login') {
+    return res.status(200).json(await authenticateWithPassword(req.body, clientIp(req)));
+  }
+
 
   // ── SET-PASSWORD (authenticated; adds a password to an existing account) ──
   if (action === 'set-password') {
