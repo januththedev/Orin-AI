@@ -3,9 +3,12 @@
  *
  * Two accepted Bearer credentials:
  *   1. Orin session tokens (HS256 JWT, signed with TOKEN_ENCRYPTION_KEY):
- *      minted by /api/auth/password (register/login), /api/auth/google
- *      (GIS sign-in), /api/auth/neon (Neon Auth exchange) and /api/auth/device
- *      (desktop flow). 30-day expiry, revocable via users/{uid}.tokenVersion.
+ *      minted by /api/auth/password (register/login), /api/auth/neon
+ *      (Neon Auth exchange) and /api/auth/device (desktop flow). 30-day
+ *      expiry, revocable via users/{uid}.tokenVersion.
+ *      NOTE: there is no "Sign in with Google". /api/auth/google stores
+ *      encrypted Google Workspace *module* tokens (Drive, Gmail) for an
+ *      already-authenticated user; it never mints a session.
  *   2. Neon Auth access tokens (EdDSA/JWKS via ./neonauth.js): verified by
  *      signature only; uid is derived deterministically (`n_<sub>`).
  *      Provisioning happens in the exchange endpoints, never here.
