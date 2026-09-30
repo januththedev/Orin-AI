@@ -27,3 +27,24 @@ jobs:
       - run: npm run check
       - run: npm run build
       - run: git diff --exit-code
+
+  # The GitHub security banner counts dev tooling — babel, vite, vitest,
+  # playwright — which never reaches a deployed function. The number that decides
+  # whether the shipped app is safe is the production one, so gate on that and
+  # nothing else. A nonzero here means a runtime dependency is vulnerable.
+  production-audit:
+    name: production dependency audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.18.0
+          cache: npm
+      - run: npm ci --omit=dev
+      - name: No vulnerable production dependencies
+        run: npm audit --omit=dev --audit-level=moderate
