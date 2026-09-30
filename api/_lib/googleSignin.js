@@ -1,27 +1,32 @@
 /**
- * POST /api/auth/google-signin — sign in with a Google account.
+ * Sign in with a Google account.
  *
- * GET  → { authorizationUrl }  the caller sends the browser to Google
+ * Reached as `/api/auth/google-signin`, dispatched from `api/auth/[...path].js`
+ * rather than deployed as its own function: at 13 functions this project was
+ * one over Vercel's Hobby limit of 12, which fails the deploy *after* a
+ * successful build.
+ *
+ * GET  → { authorizationUrl }   the caller sends the browser to Google
  * POST → { code, state, nonce, codeVerifier }
  *      verifies the ID token, finds or creates the Orin account, sets the
  *      session cookie, and returns where to send the browser next.
  *
  * This is separate from /api/auth/google, which stores Google *Drive/Gmail*
  * module tokens for an already-authenticated user. Mixing identity with
- * delegated module access is how a "connect your Drive" button ends up
- * becoming a sign-in button by accident.
+ * delegated module access is how a "connect your Drive" button quietly becomes
+ * a sign-in button.
  */
 
-import { createBffSession } from '../_lib/bff.js';
-import { httpError } from '../_lib/auth.js';
-import { sdocGet, sdocSet, squery, TS } from '../_lib/store.js';
+import { createBffSession } from './bff.js';
+import { httpError } from './auth.js';
+import { sdocGet, sdocSet, squery, TS } from './store.js';
 import {
   buildAuthUrl,
   exchangeCode,
   safeReturn,
   uidForGoogle,
   verifyIdToken,
-} from '../_lib/googleIdentity.js';
+} from './googleIdentity.js';
 
 const DEFAULT_RETURN = 'https://orinai.org/';
 /** Short-lived: this is an in-flight hand-off, not a session. */
@@ -59,7 +64,7 @@ export default async function handler(req, res) {
   const { clientId, clientSecret, redirectUri } = config();
 
   if (req.method === 'GET') {
-    const returnTo = safeReturn(new URL(req.url, 'http://x').searchParams.get('return_to')) || DEFAULT_RETURN;
+    const returnTo = safeReturn(new URL(req.url || '/', 'http://x').searchParams.get('return_to')) || DEFAULT_RETURN;
     const state = randomToken();
     const nonce = randomToken();
     // PKCE, so an intercepted code cannot be redeemed without the verifier that
@@ -67,11 +72,7 @@ export default async function handler(req, res) {
     const codeVerifier = randomToken(32);
     const codeChallenge = await sha256Base64Url(codeVerifier);
 
-    await sdocSet(
-      handshakeKey(state),
-      { nonce, codeVerifier, returnTo, createdAt: Date.now() },
-      true,
-    ).catch(() => {});
+    await sdocSet(handshakeKey(state), { nonce, codeVerifier, returnTo, createdAt: Date.now() }, true).catch(() => {});
 
     return res.status(200).json({
       authorizationUrl: buildAuthUrl({ clientId, redirectUri, state, nonce, codeChallenge }),
@@ -111,9 +112,6 @@ export default async function handler(req, res) {
     throw httpError(401, error?.message || 'That Google sign-in could not be verified.');
   });
 
-  // Prefer an existing account bound to this Google subject; fall back to the
-  // verified email, and only then create. An unverified email never reaches
-  // this point.
   const uid = await resolveUid(identity);
   await sdocSet(`users/${uid}`, {
     id: uid,

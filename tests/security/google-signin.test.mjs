@@ -89,9 +89,16 @@ describe("Google sign-in", () => {
     expect(uidForGoogle("../../etc/passwd")).toMatch(/^gg_[A-Za-z0-9_-]*$/);
   });
 
+  it("is dispatched from the auth catch-all, not its own function", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const dispatcher = await readFile(new URL("../../api/auth/[...path].js", import.meta.url), "utf8");
+    expect(dispatcher).toMatch(/google-signin/);
+    expect(dispatcher).toMatch(/googleSigninHandler/);
+  });
+
   it("keeps identity separate from module tokens", async () => {
     const { readFile } = await import("node:fs/promises");
-    const signin = await readFile(new URL("../../api/auth/google-signin.js", import.meta.url), "utf8");
+    const signin = await readFile(new URL("../../api/_lib/googleSignin.js", import.meta.url), "utf8");
     const modules = await readFile(new URL("../../api/auth/google.js", import.meta.url), "utf8");
     // The Drive/Gmail module-token route must not become an identity route.
     expect(modules).not.toMatch(/createBffSession|mintSession/);
