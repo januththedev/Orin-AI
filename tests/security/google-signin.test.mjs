@@ -98,3 +98,15 @@ describe("Google sign-in", () => {
     expect(signin).toMatch(/createBffSession/);
   });
 });
+
+describe("the sign-in page", () => {
+  it("offers Google, and loads no third-party script to do it", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const page = await readFile(new URL("../../api/signin.js", import.meta.url), "utf8");
+    expect(page).toMatch(/data-google-signin/);
+    // A hosted-auth SDK or a Google script tag would both be a new party in the
+    // sign-in page. Neither belongs there.
+    expect(page).not.toMatch(/accounts\.google\.com\/gsi\/client|<script[^>]+src=/i);
+    expect(page).toMatch(/google-signin\?return_to=/);
+  });
+});
