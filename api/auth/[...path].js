@@ -35,8 +35,28 @@ async function establishBff(req, res, payload) {
   const { sessionToken: _removed, ...safe } = payload;
   return req.headers?.['x-orin-legacy-token'] === '1' ? payload : safe;
 }
+/**
+ * Which auth route was asked for.
+ *
+ * Read from the URL rather than relying on `req.query.path`. The catch-all
+ * splat is not populated the same way in every runtime, and when it is missing
+ * the whole auth surface answers "Unknown auth route" — which is exactly what a
+ * deployed Orin Code hit: `/api/auth/device` 404'd, and `/api/auth/mcp/verify`
+ * never reached the function at all. Parsing the URL cannot go wrong that way.
+ */
+function authPath(req) {
+  const fromQuery = Array.isArray(req.query?.path) ? req.query.path.join('/') : String(req.query?.path || '');
+  if (fromQuery) return fromQuery;
+  const raw = String(req.url || '');
+  const pathname = raw.startsWith('http') ? new URL(raw).pathname : raw;
+  const after = pathname.replace(/^.*\/api\/auth\/?/, '').replace(/^\/+|\/+$/g, '');
+  // Anything that could not be a route name must not reach the dispatcher.
+  if (!after || after.length > 120 || !/^[\w./-]+$/.test(after)) return '';
+  return after;
+}
+
 async function handler(req, res) {
-  const path = Array.isArray(req.query?.path) ? req.query.path.join('/') : String(req.query?.path || '');
+  const path = authPath(req);
   if (path === 'password' && req.method === 'POST') {
     const state = await invoke(passwordHandler, req);
     if (state.status >= 400) return res.status(state.status).json(state.body);
