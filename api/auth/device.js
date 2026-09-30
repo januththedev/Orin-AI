@@ -3,7 +3,7 @@
  *
  * Flow:
  *   1. Desktop app  : POST {action:'start'}                → {device_code, user_code}
- *   2. Desktop app  : opens https://orinai.org/#device-auth?code=<user_code> in system browser
+ *   2. Desktop app  : opens https://chat.orinai.org/#device-auth?code=<user_code> in system browser
  *   3. User         : signs in on the website, taps "Approve"
  *                     POST {action:'approve', device_code} + Bearer session token
  *   4. Desktop app  : polls POST {action:'token', device_code} → {session_token} once approved
@@ -58,7 +58,7 @@ async function handler(req, res) {
     return res.status(200).json({
       device_code: deviceCode,
       user_code: userCode,
-      verify_url: `https://orinai.org/#device-auth?code=${userCode}`,
+      verify_url: `https://chat.orinai.org/#device-auth?code=${userCode}`,
       expires_in: Math.floor(CODE_TTL_MS / 1000),
       interval: 3,
     });

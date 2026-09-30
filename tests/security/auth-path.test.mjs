@@ -58,3 +58,24 @@ describe("auth route resolution", () => {
     }
   });
 });
+
+describe("the device sign-in flow points somewhere real", () => {
+  it("sends the user to a host that actually renders the approval page", async () => {
+    const { readFile } = await import("node:fs/promises");
+    // The approval page lives in Core's SPA, not on the marketing hub. Pointing
+    // the user at the apex sent them to a page that does not exist there, so
+    // the flow could never complete even with the API working.
+    for (const file of ["../../api/_lib/legacyDevice.js", "../../api/auth/device.js"]) {
+      const source = await readFile(new URL(file, import.meta.url), "utf8");
+      expect(source, file).toContain("https://chat.orinai.org/#device-auth");
+      expect(source, file).not.toMatch(/['"`]https:\/\/orinai\.org\/#device-auth/);
+    }
+  });
+
+  it("the approval page is actually routed in the app", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const app = await readFile(new URL("../../App.tsx", import.meta.url), "utf8");
+    expect(app).toMatch(/case 'device-auth':/);
+    expect(app).toMatch(/<DeviceAuthPage/);
+  });
+});

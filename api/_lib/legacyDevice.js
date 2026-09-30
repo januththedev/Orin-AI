@@ -23,7 +23,7 @@ async function handler(req, res) {
     const code = userCode();
     const id = sha256(deviceCode);
     await sdocSet('device_auth_v2', id, { clientId: String(body.client_id), codeHash: sha256(code), challenge: String(body.code_challenge), scopes, status: 'pending', attempts: 0, createdAt: Date.now(), expiresAt: Date.now() + CODE_TTL });
-    return res.status(200).json({ device_code: deviceCode, user_code: code, verification_uri: 'https://orinai.org/#device-auth', expires_in: CODE_TTL / 1000, interval: 5 });
+    return res.status(200).json({ device_code: deviceCode, user_code: code, verification_uri: 'https://chat.orinai.org/#device-auth', expires_in: CODE_TTL / 1000, interval: 5 });
   }
   if (body.action === 'details') {
     const user = await requireUser(req);
