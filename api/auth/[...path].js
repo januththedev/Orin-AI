@@ -44,15 +44,33 @@ async function establishBff(req, res, payload) {
  * deployed Orin Code hit: `/api/auth/device` 404'd, and `/api/auth/mcp/verify`
  * never reached the function at all. Parsing the URL cannot go wrong that way.
  */
-function authPath(req) {
-  const fromQuery = Array.isArray(req.query?.path) ? req.query.path.join('/') : String(req.query?.path || '');
-  if (fromQuery) return fromQuery;
-  const raw = String(req.url || '');
-  const pathname = raw.startsWith('http') ? new URL(raw).pathname : raw;
-  const after = pathname.replace(/^.*\/api\/auth\/?/, '').replace(/^\/+|\/+$/g, '');
-  // Anything that could not be a route name must not reach the dispatcher.
-  if (!after || after.length > 120 || !/^[\w./-]+$/.test(after)) return '';
-  return after;
+/** A path is only usable if it cannot walk anywhere and is spelled like a route. */
+function isRoutePath(value) {
+  if (!value || value.length > 120) return false;
+  if (!/^[\w./-]+$/.test(value)) return false;
+  return !value.split('/').some((part) => part === '.' || part === '..');
+}
+
+export function authPath(req) {
+  // The URL is the source of truth. `req.query.path` is only consulted when the
+  // URL yields nothing, because a populated-but-wrong value there will
+  // short-circuit the whole dispatcher and every route answers
+  // "Unknown auth route" — which is exactly what production was doing.
+  const raw = String((req && req.url) || '');
+  let pathname = '';
+  try {
+    pathname = raw.startsWith('http') ? new URL(raw).pathname : raw;
+  } catch {
+    pathname = '';
+  }
+  // Drop the query and fragment first: `device?state=x` is not a route name.
+  pathname = pathname.split('?')[0].split('#')[0];
+  const fromUrl = pathname.replace(/^.*\/api\/auth\/?/, '').replace(/^\/+|\/+$/g, '');
+  if (isRoutePath(fromUrl)) return fromUrl;
+
+  const query = (req && req.query) || {};
+  const fromQuery = Array.isArray(query.path) ? query.path.join('/') : String(query.path || '');
+  return isRoutePath(fromQuery) ? fromQuery : '';
 }
 
 async function handler(req, res) {
