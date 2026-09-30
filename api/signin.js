@@ -117,6 +117,10 @@ function page({ returnTo, error, identifier, registered, csrf }) {
   button.secondary { background:#1c1c21; color:#f4f4f5; border:1px solid rgba(255,255,255,.12); }
   .switch { margin-top:20px; text-align:center; font-size:.9rem; color:#a1a1aa; }
   .switch button { background:none; color:#22d3ee; padding:0; font-weight:600; text-decoration:underline; }
+  .google { display:flex; align-items:center; justify-content:center; gap:9px; width:100%; margin-top:20px; padding:12px; border:1px solid var(--line); border-radius:11px; background:#fff; color:#1f1f1f; text-decoration:none; font-weight:600; }
+  .google:hover { border-color:var(--accent); }
+  .or { display:flex; align-items:center; gap:12px; margin:18px 0 4px; color:var(--muted-2); font:11px var(--font-mono); letter-spacing:.14em; text-transform:uppercase; }
+  .or::before, .or::after { content:''; flex:1; height:1px; background:var(--line); }
   .err { background:rgba(248,113,113,.1); border:1px solid rgba(248,113,113,.35); color:#fca5a5;
          padding:10px 12px; border-radius:10px; font-size:.9rem; }
   .ok { background:rgba(74,222,128,.1); border:1px solid rgba(74,222,128,.32); color:#86efac;
@@ -131,6 +135,8 @@ function page({ returnTo, error, identifier, registered, csrf }) {
   <div class="brand"><span class="dot" aria-hidden="true"></span> Orin</div>
   <h1>${registered ? 'Create your account' : 'Sign in'}</h1>
   <p class="sub">One Orin account works across Chat, Code, Agent, Router and MCP.</p>
+  ${googleButton(posted)}
+  <div class="or"><span>or</span></div>
   ${notice}
   <form method="post" action="/signin" autocomplete="on">
     <input type="hidden" name="csrf" value="${escapeHtml(csrf)}" />
@@ -161,6 +167,19 @@ function page({ returnTo, error, identifier, registered, csrf }) {
 </script>
 </body>
 </html>`;
+}
+
+/** One plain link: no SDK, no third-party script, nothing new loaded. */
+function googleButton(returnTo) {
+  const configured = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+  const href = configured ? `/api/auth/google-signin?return_to=${encodeURIComponent(returnTo)}` : '#';
+  const svg = '<svg viewBox="0 0 48 48" width="17" height="17" aria-hidden="true">'
+    + '<path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>'
+    + '<path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>'
+    + '<path fill="#FBBC05" d="M10.53 28.59A14.5 14.5 0 0 1 9.75 24c0-1.59.27-3.13.76-4.59l-7.98-6.19A23.94 23.94 0 0 0 0 24c0 3.87.93 7.54 2.56 10.78l7.97-6.19z"/>'
+    + '<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>'
+    + '</svg>';
+  return `<a class="google" href="${href}" data-google-signin="1">${svg}Continue with Google</a>`;
 }
 
 function send(res, status, body, contentType = 'text/html; charset=utf-8') {
