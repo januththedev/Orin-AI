@@ -27,3 +27,9 @@ dist-ssr
 # Single service worker lives in public/sw.js; ignore any root sw.js to avoid conflict
 /sw.js
 orin-router/
+
+# Playwright run artifacts -- regenerated on every run, never part of the source.
+test-results/
+playwright-report/
+blob-report/
+.playwright/
