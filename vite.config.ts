@@ -35,7 +35,10 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       chunkSizeWarningLimit: 1000,
-      minify: 'esbuild',
+      // Vite 8 minifies with Oxc, not esbuild. Naming 'esbuild' explicitly makes
+      // vite try to import a package it no longer depends on, and the build dies
+      // with ERR_MODULE_NOT_FOUND -- so leave this on the default minifier.
+      minify: true,
       target: 'es2020',
       cssMinify: true,
       rollupOptions: {

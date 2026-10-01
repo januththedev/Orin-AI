@@ -28,6 +28,33 @@ jobs:
       - run: npm run build
       - run: git diff --exit-code
 
+  # Browser smoke coverage for the built bundle.
+  #
+  # Every page in App.tsx mounts through React.lazy(() => import(...)), so the
+  # app only works if the bundler emits the dynamic chunks and the browser can
+  # fetch them at runtime. A bundler upgrade that mis-emits or mis-resolves a
+  # chunk still passes tsc, still passes vitest, and still writes a dist/
+  # directory -- it fails only here. That is the regression class this caught
+  # during the Vite 8 / Rolldown migration, so it is now a gate rather than a
+  # script nobody runs.
+  smoke:
+    name: browser smoke (built bundle)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.18.0
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npm run test:e2e
+
   # The GitHub security banner counts dev tooling — babel, vite, vitest,
   # playwright — which never reaches a deployed function. The number that decides
   # whether the shipped app is safe is the production one, so gate on that and
