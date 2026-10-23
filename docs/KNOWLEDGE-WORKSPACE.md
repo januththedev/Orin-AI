@@ -26,7 +26,8 @@ not require a Next.js migration.
 
 | Variable                     | Purpose                                                                                                |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `DATABASE_URL`               | Neon connection string, server only                                                                    |
+| `DATABASE_URL`               | Pooled Neon connection string, server only                                                             |
+| `DATABASE_URL_UNPOOLED`      | Optional direct connection used by the migration command; never exposed to the browser                 |
 | `TOKEN_ENCRYPTION_KEY`       | Existing encryption secret, at least 32 random characters; back up securely                            |
 | `VITE_CLERK_PUBLISHABLE_KEY` | Clerk's public browser key                                                                             |
 | `CLERK_ISSUER_URL`           | Exact Clerk issuer, e.g. `https://your-instance.clerk.accounts.dev`                                    |
@@ -259,3 +260,9 @@ It preserves local/session storage, cookies, chat history, and preferences.
 The destination is restricted to the same origin. A disabled admin login with a
 configuration notice means `ORIN_ADMIN_PASSWORD` is missing or shorter than
 12 characters in that deployment; set it in Vercel and redeploy.
+
+The migration creates both the legacy `orin_docs` table and the workspace tables
+without dropping existing data. It enables pgvector and prefers
+`DATABASE_URL_UNPOOLED` when provided; API requests use the pooled `DATABASE_URL`.
+Database credentials belong only in ignored local environment files and Vercel
+server environment variables, never in source files or `VITE_` variables.
