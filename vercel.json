@@ -42,11 +42,33 @@
       "destination": "/januth-nimnal.html"
     },
     {
-      "source": "/((?!api/|sitemap.xml|robots.txt|favicon.svg|sw.js|manifest.json|assets|privacy\\.html|releases\\.html|januth-nimnal\\.html|google[0-9a-f]+\\.html|og-.*\\.png).*)",
+      "source": "/((?!api/|sitemap.xml|robots.txt|favicon.svg|sw.js|manifest.json|assets|refresh\\.html|privacy\\.html|releases\\.html|januth-nimnal\\.html|google[0-9a-f]+\\.html|og-.*\\.png).*)",
       "destination": "/index.html"
     }
   ],
   "headers": [
+    {
+      "source": "/refresh.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ]
+    },
     {
       "source": "/(.*)",
       "headers": [

@@ -30,24 +30,9 @@ const startApp = () => {
   const rootElement = document.getElementById('root');
   if (!rootElement) return;
 
-  // Version check — /api/* bypasses SW cache so this always hits the server.
-  // If the stored version is stale, wipe all caches + localStorage and hard-reload.
-  // Non-technical users get the fix automatically on next open.
-  (async () => {
-    try {
-      const res = await fetch('/api/version', { cache: 'no-store' });
-      const { v } = await res.json();
-      const stored = localStorage.getItem('orin_app_v');
-      if (stored && stored !== v) {
-        localStorage.clear();
-        try { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); } catch {}
-        localStorage.setItem('orin_app_v', v);
-        window.location.reload();
-        return;
-      }
-      localStorage.setItem('orin_app_v', v);
-    } catch {}
-  })();
+  // Builds use content-hashed assets. If a browser retains an old app shell,
+  // /refresh.html removes only Orin's asset caches. Never erase chat history or
+  // preferences on a deploy, and never treat an absent version endpoint as a version.
 
   if ('serviceWorker' in navigator && isOrinAiOrigin()) {
     window.addEventListener('load', () => {

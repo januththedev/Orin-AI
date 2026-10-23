@@ -88,3 +88,33 @@ test("admin entry is visible and uses a password without a Clerk account", async
   await page.goto("/#admin");
   await expect(page.getByLabel("Admin password")).toBeVisible();
 });
+
+test("refresh recovery loads the latest page and preserves saved history and preferences", async ({ page }) => {
+  await page.route("**/api/version", route => route.fulfill({ json: { v: "different-server-version" } }));
+  await page.route("**/api/workspace", route => route.fulfill({ json: { authenticated: false, configured: true } }));
+  await page.goto("/");
+  await page.evaluate(async () => {
+    localStorage.setItem("orin_app_v", "legacy-browser-version");
+    localStorage.setItem("orin-saved-history-check", "preserve-my-chats");
+    sessionStorage.setItem("orin-draft-check", "preserve-my-draft");
+    await (await caches.open("orin-ai-stale-test")).put("/old-app.js", new Response("old"));
+    await caches.open("unrelated-app-cache");
+  });
+  await page.goto("/refresh.html?next=/admin");
+  await expect(page).toHaveURL(/\/admin\?app-refresh=\d+$/);
+  await expect(page.getByLabel("Admin password")).toBeVisible();
+  const result = await page.evaluate(async () => ({
+    version: localStorage.getItem("orin_app_v"),
+    history: localStorage.getItem("orin-saved-history-check"),
+    draft: sessionStorage.getItem("orin-draft-check"),
+    caches: await caches.keys(),
+  }));
+  expect(result.version).toBe("legacy-browser-version");
+  expect(result.history).toBe("preserve-my-chats");
+  expect(result.draft).toBe("preserve-my-draft");
+  expect(result.caches).not.toContain("orin-ai-stale-test");
+  expect(result.caches).toContain("unrelated-app-cache");
+  await page.goto("/refresh.html?next=https://other.example/admin");
+  await expect(page).toHaveURL(/127\.0\.0\.1:4173\/\?app-refresh=\d+$/);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("A little clarity.");
+});

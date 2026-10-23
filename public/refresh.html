@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#faf9f6">
+  <title>Refreshing Orin</title>
+  <link rel="icon" href="/favicon.svg">
+  <style>
+    body { margin: 0; min-height: 100dvh; display: grid; place-items: center; background: #faf9f6; color: #34332f; font: 15px/1.7 system-ui, sans-serif; }
+    main { max-width: 430px; padding: 32px; }
+    img { width: 44px; height: 44px; }
+    h1 { font: 400 40px/1.2 Georgia, serif; letter-spacing: -1px; margin-bottom: 16px; }
+    p { color: #6c6a63; }
+    a { color: #0891b2; }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/favicon.svg" alt="Orin logo">
+    <h1>Making room for the latest Orin.</h1>
+    <p role="status" id="status">Refreshing the app files. Your saved chats and settings stay with you.</p>
+    <a id="continue" href="/">Continue to Orin</a>
+    <noscript><p>JavaScript is required to refresh cached app files automatically.</p></noscript>
+  </main>
+  <script>
+    (async () => {
+      let next;
+      try { next = new URL(new URLSearchParams(location.search).get('next') || '/', location.origin); }
+      catch { next = new URL('/', location.origin); }
+      if (next.origin !== location.origin || next.pathname === '/refresh.html') next = new URL('/', location.origin);
+      next.searchParams.set('app-refresh', String(Date.now()));
+      document.getElementById('continue').href = next.href;
+      try {
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.filter(reg => {
+            const script = (reg.active || reg.waiting || reg.installing)?.scriptURL;
+            return script && new URL(script).origin === location.origin && new URL(script).pathname === '/sw.js';
+          }).map(reg => reg.unregister()));
+        }
+        if ('caches' in window) {
+          const names = await caches.keys();
+          await Promise.all(names.filter(name => name.startsWith('orin-ai-')).map(name => caches.delete(name)));
+        }
+        location.replace(next.href);
+      } catch {
+        document.getElementById('status').textContent = 'Your browser could not clear the old app files automatically. Use the link below, or reload with Ctrl+Shift+R.';
+      }
+    })();
+  </script>
+</body>
+</html>

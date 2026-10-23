@@ -246,3 +246,16 @@ accuracy or validate third-party credentials.
 If Chromium is preinstalled elsewhere, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` for
 `verify:workspace`. Screenshots default to `/tmp/orin-workspace-qa`; set `ORIN_QA_DIR`
 for another path. Do not commit browser artifacts or real credentials.
+
+## Refreshing a stale browser
+
+The verified address for this chat interface is `https://chat.orinai.org`. The
+ecosystem homepage (`orinai.org`) and the older `orin-ai.vercel.app` address can
+serve other builds; check domain assignments in Vercel when comparing versions.
+If an already-open browser still shows an older interface, open `/refresh.html`.
+For administration, use `/refresh.html?next=/admin`. This removes only this app's
+`/sw.js` registration and `orin-ai-*` asset caches, then requests a fresh page.
+It preserves local/session storage, cookies, chat history, and preferences.
+The destination is restricted to the same origin. A disabled admin login with a
+configuration notice means `ORIN_ADMIN_PASSWORD` is missing or shorter than
+12 characters in that deployment; set it in Vercel and redeploy.
