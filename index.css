@@ -19,8 +19,8 @@
 .safe-pb { padding-bottom: max(1.5rem, env(safe-area-inset-bottom)); }
 .safe-pt { padding-top: max(0px, env(safe-area-inset-top)); }
 .tap-target { min-width: 44px; min-height: 44px; }
-.sinhala-text { font-family: 'Noto Sans Sinhala', sans-serif; line-height: 1.8; }
-.tamil-text { font-family: 'Noto Sans Tamil', sans-serif; line-height: 1.8; }
+.sinhala-text { font-family: 'Noto Sans Sinhala Variable', sans-serif; line-height: 1.8; }
+.tamil-text { font-family: 'Noto Sans Tamil Variable', sans-serif; line-height: 1.8; }
 
 .glass {
   background: rgb(255 255 255 / 0.7);

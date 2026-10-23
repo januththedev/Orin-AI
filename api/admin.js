@@ -1,3 +1,5 @@
+import { createWorkspaceHandler } from './_lib/workspace/handler.js';
+const workspaceHandler = createWorkspaceHandler();
 /**
  * POST /api/admin — admin & onboarding operations. One backend, one deployment:
  * this is now the ONLY place these exist.
@@ -48,6 +50,7 @@ async function callerRole(uid) {
 }
 
 async function handler(req, res) {
+  if (req.query?.workspace === '1' || new URL(req.url, 'https://workspace.invalid').searchParams.get('workspace') === '1') return workspaceHandler(req, res);
   if (req.method !== 'POST') throw httpError(405, 'POST only');
   const decoded = await requireUser(req);
   const uid = decoded.uid;

@@ -29,6 +29,8 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), swVersionPlugin()],
+    server: { proxy: { '/api/workspace': 'http://127.0.0.1:3001' } },
+    preview: { proxy: { '/api/workspace': 'http://127.0.0.1:3001' } },
     resolve: {
       // Single React copy so the app can never load two Reacts and crash on hooks.
       dedupe: ['react', 'react-dom'],
@@ -59,8 +61,8 @@ export default defineConfig(({ mode }) => {
       },
     },
     define: {
-      // Expose API Keys
-      'process.env.API_KEY': JSON.stringify(env.API_KEY || env.VITE_API_KEY),
+      // Legacy browser references stay empty; provider secrets remain server-side.
+      'process.env.API_KEY': JSON.stringify(''),
       'process.env.VITE_RECAPTCHA_SITE_KEY': JSON.stringify(env.VITE_RECAPTCHA_SITE_KEY || env.RECAPTCHA_SITE_KEY || ''),
       // Shim Node's global for browser-only libs (e.g. plotly/has-hover)
       global: 'window',

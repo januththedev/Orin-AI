@@ -2,7 +2,21 @@
 
 English, Sinhala, and Tamil conversational assistant built by **Januth Nimnal**.
 
-## Platform v2 architecture
+## Knowledge workspace (new default browser UI)
+
+Clerk sign-in, Neon conversation storage, curated Markdown RAG, encrypted provider
+pools, Balanced/Best routing, streaming, and a shared chat/admin interface.
+
+```bash
+npm ci
+npm run dev:demo
+```
+
+The local demo requires no service credentials. For real-service setup, database
+migration, history import, provider configuration, scheduler deployment, and current
+limitations, read [Knowledge workspace setup](docs/KNOWLEDGE-WORKSPACE.md).
+
+## Legacy platform v2 architecture
 
 - `orin-platform` is pinned as `vendor/orin-platform` at tag `platform-v1.0.0`.
 - Neon Auth is the human identity authority.

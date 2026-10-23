@@ -1,0 +1,8 @@
+name = "orin-workspace-scheduler"
+main = "scheduler.js"
+compatibility_date = "2026-10-23"
+[triggers]
+crons = ["* * * * *"]
+[vars]
+ORIN_WORKSPACE_URL = "https://chat.orinai.org/api/workspace"
+# Set the matching secret using: wrangler secret put ORIN_WORKER_SECRET

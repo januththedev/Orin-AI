@@ -1,3 +1,8 @@
+import '@fontsource-variable/inter';
+import '@fontsource-variable/plus-jakarta-sans';
+import '@fontsource-variable/noto-sans-sinhala';
+import '@fontsource-variable/noto-sans-tamil';
+import '@fortawesome/fontawesome-free/css/all.min.css';
 import './index.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';

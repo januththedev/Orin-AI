@@ -691,4 +691,24 @@ const App: React.FC = () => {
   );
 };
 
-export default App;
+const KnowledgeWorkspace = React.lazy(() => import('./ui/WorkspaceApp'));
+const PublicLanding = React.lazy(() => import('./ui/PublicLanding'));
+function Root() {
+  const [hash, setHash] = React.useState(window.location.hash);
+  React.useEffect(() => {
+    const update = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', update);
+    return () => window.removeEventListener('hashchange', update);
+  }, []);
+  if (/^#(device-auth|privacy|terms|downloads|voice|translate)/.test(hash) || (import.meta as any).env.VITE_LEGACY_WORKSPACE === '1') return <App />;
+  const demo = (import.meta as any).env.DEV && (import.meta as any).env.VITE_ORIN_LOCAL_DEMO === '1';
+  const workspace = /^#(chat|signin|admin)/.test(hash) || (demo && hash !== '#home');
+  const start = (prompt?: string) => {
+    try { if (prompt) sessionStorage.setItem('orin_landing_prompt', prompt); else sessionStorage.removeItem('orin_landing_prompt'); } catch {}
+    window.location.hash = 'chat';
+  };
+  return <React.Suspense fallback={<div style={{background:'#f8f7f2',height:'100dvh'}} />}>
+    {workspace ? <KnowledgeWorkspace /> : <PublicLanding onStart={start} onSignIn={() => { window.location.hash = 'signin'; }} />}
+  </React.Suspense>;
+}
+export default Root;

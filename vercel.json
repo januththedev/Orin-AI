@@ -18,6 +18,10 @@
   },
   "rewrites": [
     {
+      "source": "/api/workspace",
+      "destination": "/api/admin?workspace=1"
+    },
+    {
       "source": "/api/auth/session/:path*",
       "destination": "/api/auth/[...path]"
     },
