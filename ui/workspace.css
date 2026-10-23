@@ -2086,3 +2086,23 @@
     visibility: visible !important;
   }
 }
+
+.password-admin.orin-workspace { display: flex; flex-direction: column; overflow: auto; min-height: 100dvh; height: 100dvh; }
+.password-admin-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 40px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.password-admin-brand { display: flex; align-items: center; gap: 12px; color: var(--ink); text-decoration: none; font-size: 21px; font-weight: 650; }
+.password-admin-brand img { height: 35px; width: 35px; }
+.password-admin-brand > span > span { margin-left: 8px; color: var(--muted); font-size: 13px; font-weight: 450; }
+.password-admin-login, .password-admin-loading { flex: 1; display: grid; place-items: center; padding: 48px 24px; }
+.password-admin-card { width: min(100%, 450px); }
+.password-admin-lock { height: 62px; width: 62px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); margin-bottom: 30px; color: var(--accent); }
+.password-admin-card .eyebrow { font-size: 10px; letter-spacing: 1.7px; color: var(--muted); font-weight: 600; }
+.password-admin-card h1 { font-family: Georgia, serif; font-weight: 400; font-size: clamp(40px, 7vw, 54px); letter-spacing: -1.8px; line-height: 1.15; margin: 15px 0; }
+.password-admin-description { color: var(--muted); font-size: 15px; line-height: 1.75; margin-bottom: 30px; }
+.password-admin-card form { display: grid; gap: 12px; margin-top: 26px; }
+.password-admin-card label { font-size: 13px; font-weight: 550; }
+.password-admin-card input { width: 100%; min-height: 52px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); padding: 12px 15px; border-radius: 12px; font-size: 16px; }
+.password-admin-card form .button { justify-content: center; min-height: 50px; margin-top: 7px; }
+.password-admin-footnote { display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 11px; color: var(--muted); margin-top: 28px; }
+.password-admin-content { flex: 1; width: 100%; }
+.password-admin-content > .admin-page { max-width: 1240px; margin-inline: auto; }
+@media (max-width: 600px) { .password-admin-header { padding: 18px 20px; } .password-admin-brand > span > span { display: none; } .password-admin-header .text-button { font-size: 12px; } .password-admin-login { align-content: center; padding: 40px 24px; } }

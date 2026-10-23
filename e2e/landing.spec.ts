@@ -71,3 +71,20 @@ test("landing sign-in opens the configured auth entry path", async ({
     page.getByRole("dialog", { name: "Make yourself at home" }),
   ).toBeVisible();
 });
+
+test("admin entry is visible and uses a password without a Clerk account", async ({ page }) => {
+  await page.route("**/api/workspace", async (route) => {
+    const { action } = route.request().postDataJSON();
+    await route.fulfill({ json: action === "admin.session" ? { authenticated: false, configured: true } : { error: "Incorrect admin password." }, status: action === "admin.session" ? 200 : 401 });
+  });
+  await page.goto("/");
+  await page.getByRole("link", { name: "Admin", exact: true }).click();
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page.getByLabel("Admin password")).toBeVisible();
+  await page.getByLabel("Admin password").fill("wrong-password");
+  await page.getByRole("button", { name: "Open administration" }).click();
+  await expect(page.getByRole("alert")).toContainText("Incorrect admin password");
+  await expect(page.getByLabel("Admin password")).toHaveValue("");
+  await page.goto("/#admin");
+  await expect(page.getByLabel("Admin password")).toBeVisible();
+});

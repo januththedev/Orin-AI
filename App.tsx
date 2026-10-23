@@ -692,6 +692,7 @@ const App: React.FC = () => {
 };
 
 const KnowledgeWorkspace = React.lazy(() => import('./ui/WorkspaceApp'));
+const PasswordAdmin = React.lazy(() => import('./ui/AdminApp'));
 const PublicLanding = React.lazy(() => import('./ui/PublicLanding'));
 function Root() {
   const [hash, setHash] = React.useState(window.location.hash);
@@ -700,6 +701,7 @@ function Root() {
     window.addEventListener('hashchange', update);
     return () => window.removeEventListener('hashchange', update);
   }, []);
+  if (/^\/admin\/?$/.test(window.location.pathname) || /^#admin(?:$|[/?])/.test(hash)) return <React.Suspense fallback={<PageFallback />}><PasswordAdmin /></React.Suspense>;
   if (/^#(device-auth|privacy|terms|downloads|voice|translate)/.test(hash) || (import.meta as any).env.VITE_LEGACY_WORKSPACE === '1') return <App />;
   const demo = (import.meta as any).env.DEV && (import.meta as any).env.VITE_ORIN_LOCAL_DEMO === '1';
   const workspace = /^#(chat|signin|admin)/.test(hash) || (demo && hash !== '#home');

@@ -1,3 +1,4 @@
+import { adminAuth } from "./admin-auth.js";
 import { tick } from "./jobs.js";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { Repository, fail } from "./repository.js";
@@ -69,7 +70,11 @@ export function createWorkspaceHandler({
         throw fail(401, "Unauthorized worker.");
       return res.status(200).json(await tick(repository));
     }
-    const account = await identify(req, repository);
+    if (await adminAuth.handle(action, req, res, repository)) return;
+    const administration = !["bootstrap", "conversations", "messages", "conversation.update", "chat", "source"].includes(action);
+    const account = administration && !demo
+      ? await adminAuth.require(req)
+      : await identify(req, repository);
     const uid = account.id;
     if (!(await repository.rate(`api:${uid}`, 120, 60000)))
       throw fail(429, "Too many requests. Please wait a moment.");

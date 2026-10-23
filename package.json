@@ -22,7 +22,8 @@
     "history:import": "node --env-file-if-exists=.env.local scripts/import-workspace-history.mjs",
     "verify:workspace": "node scripts/verify-workspace.mjs",
     "test:integration": "vitest run tests/integration",
-    "verify:landing": "node scripts/verify-landing.mjs"
+    "verify:landing": "node scripts/verify-landing.mjs",
+    "verify:admin": "node scripts/verify-admin.mjs"
   },
   "dependencies": {
     "@clerk/react": "6.18.0",

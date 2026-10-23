@@ -398,7 +398,7 @@ export default function WorkspaceAdmin({
               <p>
                 {demo
                   ? "This preview uses memory storage and deterministic answers. Real API keys are unnecessary here."
-                  : "Neon stores knowledge, conversation history, and routing configuration. Clerk secures access."}
+                  : "Neon stores knowledge, conversation history, and routing configuration. Clerk secures user chats; the admin password protects this dashboard."}
               </p>
             </div>
           </section>

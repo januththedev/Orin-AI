@@ -75,7 +75,7 @@ export function makeApi(getToken: () => Promise<string | null>): ApiCall {
       );
     const data = await response.json().catch(() => ({}));
     if (!response.ok)
-      throw new Error(data.error || `Request failed (${response.status}).`);
+      throw Object.assign(new Error(data.error || `Request failed (${response.status}).`), { status: response.status });
     return data;
   };
 }

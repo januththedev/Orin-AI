@@ -54,22 +54,9 @@ const noopToken = async () => null;
 const env = (import.meta as any).env;
 
 export function Mark({ small = false }: { small?: boolean }) {
-  return (
-    <svg
-      className={small ? "orin-mark small" : "orin-mark"}
-      viewBox="0 0 64 64"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M32 6v52M6 32h52M13.6 13.6l36.8 36.8m0-36.8L13.6 50.4M22 8l20 48M8 22l48 20M42 8L22 56M8 42l48-20"
-        stroke="currentColor"
-        strokeWidth="4"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
+  return <img className={small ? "orin-mark small" : "orin-mark"} src="/favicon.svg" alt="" aria-hidden="true" />;
 }
+
 function citationPlugin() {
   return (tree: any) => {
     const walk = (node: any) => {
@@ -736,11 +723,11 @@ function Shell({
           )}
         </nav>
         <div className="sidebar-bottom">
-          {account?.role === "admin" && (
             <button
               className={`sidebar-action ${view === "admin" ? "selected" : ""}`}
               onClick={() => {
-                setView("admin");
+                if (demo) setView("admin");
+                else window.location.assign("/admin");
                 setMobile(false);
                 setSources(null);
               }}
@@ -749,7 +736,6 @@ function Shell({
               <span>Administration</span>
               <span className="tiny-pill">Admin</span>
             </button>
-          )}
           <button
             className="sidebar-action"
             onClick={() => setDialog("settings")}

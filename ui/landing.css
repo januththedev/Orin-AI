@@ -58,7 +58,7 @@
   width: min(1280px, calc(100% - 112px));
   margin-inline: auto;
 }
-.lp-sunburst {
+.lp-brand-logo {
   width: 36px;
   height: 36px;
   color: var(--lp-rust);
@@ -100,7 +100,7 @@
   letter-spacing: -2px;
   line-height: 1;
 }
-.lp-wordmark .lp-sunburst {
+.lp-wordmark .lp-brand-logo {
   width: 31px;
   height: 31px;
 }
@@ -220,7 +220,7 @@
   margin-left: 20px;
   bottom: 4px;
 }
-.lp-heading-flower .lp-sunburst {
+.lp-heading-flower .lp-brand-logo {
   width: 49px;
   height: 49px;
   color: var(--lp-ink);
@@ -383,7 +383,7 @@
   border-right: 1px solid #e6e7de;
   color: #89927d;
 }
-.lp-preview-sidebar > .lp-sunburst {
+.lp-preview-sidebar > .lp-brand-logo {
   width: 23px;
   height: 23px;
   margin-bottom: 7px;
@@ -444,7 +444,7 @@
   margin-top: 25px;
   animation: lp-change 0.35s ease;
 }
-.lp-example-answer > .lp-sunburst {
+.lp-example-answer > .lp-brand-logo {
   width: 20px;
   height: 20px;
   margin-top: 4px;
@@ -926,7 +926,7 @@
   left: 50%;
   transform: translateX(-50%);
 }
-.lp-thought-center .lp-sunburst {
+.lp-thought-center .lp-brand-logo {
   width: 33px;
   height: 33px;
   color: #b78964;
@@ -1065,7 +1065,7 @@
   border-color: #71876b50;
   transform: translateX(-50%) rotate(20deg);
 }
-.lp-language-art > .lp-sunburst {
+.lp-language-art > .lp-brand-logo {
   position: absolute;
   top: 6px;
   right: 60px;
@@ -1132,7 +1132,7 @@
   padding-bottom: 114px;
   scroll-margin-top: 20px;
 }
-.lp-faq .lp-section-intro > .lp-sunburst {
+.lp-faq .lp-section-intro > .lp-brand-logo {
   width: 45px;
   height: 45px;
   color: #a2af90;
@@ -1187,7 +1187,7 @@
   background: var(--lp-line);
   top: 0;
 }
-.lp-final > .lp-sunburst {
+.lp-final > .lp-brand-logo {
   width: 43px;
   height: 43px;
   margin: 0 auto 22px;
@@ -1225,7 +1225,7 @@
 .lp-footer .lp-wordmark > span {
   font-size: 30px;
 }
-.lp-footer .lp-wordmark .lp-sunburst {
+.lp-footer .lp-wordmark .lp-brand-logo {
   width: 24px;
   height: 24px;
 }
@@ -1502,7 +1502,7 @@
   .lp-example-answer {
     gap: 7px;
   }
-  .lp-example-answer > .lp-sunburst {
+  .lp-example-answer > .lp-brand-logo {
     width: 16px;
     height: 16px;
   }
@@ -1584,7 +1584,7 @@
   .lp-thought-center {
     top: 56px;
   }
-  .lp-thought-center .lp-sunburst {
+  .lp-thought-center .lp-brand-logo {
     width: 27px;
   }
   .lp-card-index {
@@ -1667,7 +1667,7 @@
   .lp-wordmark > span {
     font-size: 33px;
   }
-  .lp-wordmark .lp-sunburst {
+  .lp-wordmark .lp-brand-logo {
     width: 27px;
     height: 27px;
   }
@@ -1752,7 +1752,7 @@
     margin-left: 16px;
     bottom: 2px;
   }
-  .lp-heading-flower .lp-sunburst {
+  .lp-heading-flower .lp-brand-logo {
     width: 39px;
     height: 39px;
   }
@@ -2027,7 +2027,7 @@
   .lp-thought-center {
     top: 57px;
   }
-  .lp-thought-center .lp-sunburst {
+  .lp-thought-center .lp-brand-logo {
     width: 34px;
     height: 34px;
   }
@@ -2094,7 +2094,7 @@
     height: 225px;
     top: 56px;
   }
-  .lp-language-art > .lp-sunburst {
+  .lp-language-art > .lp-brand-logo {
     width: 33px;
     height: 33px;
     right: 25px;
@@ -2128,7 +2128,7 @@
   .lp-faq .lp-section-intro h2 {
     font-size: 43px;
   }
-  .lp-faq .lp-section-intro > .lp-sunburst {
+  .lp-faq .lp-section-intro > .lp-brand-logo {
     display: none;
   }
   .lp-faq-list {
@@ -2147,7 +2147,7 @@
     padding-top: 40px;
     padding-bottom: 65px;
   }
-  .lp-final > .lp-sunburst {
+  .lp-final > .lp-brand-logo {
     width: 34px;
     height: 34px;
     margin-bottom: 23px;
@@ -2354,3 +2354,5 @@
 .orin-landing main {
   overflow: clip;
 }
+
+.orin-landing img.lp-brand-logo { flex-shrink: 0; object-fit: contain; }

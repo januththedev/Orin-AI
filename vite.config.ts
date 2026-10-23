@@ -29,8 +29,8 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), swVersionPlugin()],
-    server: { proxy: { '/api/workspace': 'http://127.0.0.1:3001' } },
-    preview: { proxy: { '/api/workspace': 'http://127.0.0.1:3001' } },
+    server: { proxy: { '/api/workspace': { target: 'http://127.0.0.1:3001', changeOrigin: false } } },
+    preview: { proxy: { '/api/workspace': { target: 'http://127.0.0.1:3001', changeOrigin: false } } },
     resolve: {
       // Single React copy so the app can never load two Reacts and crash on hooks.
       dedupe: ['react', 'react-dom'],

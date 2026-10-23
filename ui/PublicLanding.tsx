@@ -21,23 +21,10 @@ interface Props {
   onStart: (prompt?: string) => void;
   onSignIn: () => void;
 }
-function Sunburst({ className = "" }: { className?: string }) {
-  return (
-    <svg
-      className={`lp-sunburst ${className}`}
-      viewBox="0 0 64 64"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M32 6v52M6 32h52M13.6 13.6l36.8 36.8m0-36.8L13.6 50.4M22 8l20 48M8 22l48 20M42 8L22 56M8 42l48-20"
-        stroke="currentColor"
-        strokeWidth="3.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
+function OrinLogo({ className = "" }: { className?: string }) {
+  return <img className={`lp-brand-logo ${className}`} src="/favicon.svg" alt="" aria-hidden="true" />;
 }
+
 const examples = [
   {
     label: "Make a plan",
@@ -176,7 +163,7 @@ export default function PublicLanding({ onStart, onSignIn }: Props) {
             scroll.current?.scrollTo({ top: 0, behavior: "smooth" });
           }}
         >
-          <Sunburst />
+          <OrinLogo />
           <span>
             orin<span className="lp-logo-dot">.</span>
           </span>
@@ -250,7 +237,7 @@ export default function PublicLanding({ onStart, onSignIn }: Props) {
               <br />
               <em>possible.</em>
               <span className="lp-heading-flower">
-                <Sunburst />
+                <OrinLogo />
               </span>
             </h1>
             <p>
@@ -322,7 +309,7 @@ export default function PublicLanding({ onStart, onSignIn }: Props) {
               </div>
               <div className="lp-window-body">
                 <aside className="lp-preview-sidebar" aria-hidden="true">
-                  <Sunburst />
+                  <OrinLogo />
                   <Plus size={15} />
                   <MessageSquare size={14} />
                   <span />
@@ -339,7 +326,7 @@ export default function PublicLanding({ onStart, onSignIn }: Props) {
                     {example.prompt}
                   </div>
                   <div className="lp-example-answer" key={`answer-${selected}`}>
-                    <Sunburst />
+                    <OrinLogo />
                     <div>
                       <h2>{example.title}</h2>
                       <p>{example.intro}</p>
@@ -545,7 +532,7 @@ export default function PublicLanding({ onStart, onSignIn }: Props) {
                 <div className="lp-thought-ring ring-two" />
                 <div className="lp-thought-ring ring-three" />
                 <span className="lp-thought-center">
-                  <Sunburst />
+                  <OrinLogo />
                 </span>
                 <div className="lp-art-thinking">
                   <Brain size={13} />
@@ -631,7 +618,7 @@ export default function PublicLanding({ onStart, onSignIn }: Props) {
             >
               <span className="lp-language-orbit orbit-a" />
               <span className="lp-language-orbit orbit-b" />
-              <Sunburst />
+              <OrinLogo />
               <span className="lp-hello hello-en">Hello.</span>
               <span className="lp-hello hello-si" lang="si">
                 ආයුබෝවන්.
@@ -657,7 +644,7 @@ export default function PublicLanding({ onStart, onSignIn }: Props) {
               <em>good questions.</em>
             </h2>
             <p>Curiosity looks good on you.</p>
-            <Sunburst />
+            <OrinLogo />
           </div>
           <div className="lp-faq-list">
             {faqs.map((faq, index) => (
@@ -684,7 +671,7 @@ export default function PublicLanding({ onStart, onSignIn }: Props) {
         </section>
         <section className="lp-final lp-container lp-reveal">
           <span className="lp-final-line" />
-          <Sunburst />
+          <OrinLogo />
           <p className="lp-eyebrow">THERE’S SOMETHING HERE FOR YOU.</p>
           <h2>
             Your next idea starts
@@ -712,7 +699,7 @@ export default function PublicLanding({ onStart, onSignIn }: Props) {
             scroll.current?.scrollTo({ top: 0, behavior: "smooth" });
           }}
         >
-          <Sunburst />
+          <OrinLogo />
           <span>
             orin<span className="lp-logo-dot">.</span>
           </span>
@@ -726,6 +713,7 @@ export default function PublicLanding({ onStart, onSignIn }: Props) {
           .
         </p>
         <nav aria-label="Footer navigation">
+          <a href="/admin">Admin</a>
           <a href="#privacy">Privacy</a>
           <a href="#terms">Terms</a>
           <button onClick={onSignIn}>

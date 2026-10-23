@@ -32,13 +32,21 @@ not require a Next.js migration.
 | `CLERK_ISSUER_URL`           | Exact Clerk issuer, e.g. `https://your-instance.clerk.accounts.dev`                                    |
 | `ORIN_AUTHORIZED_PARTIES`    | Comma-separated allowed frontend origins; include the actual preview URL and localhost for development |
 | `CLERK_JWT_AUDIENCE`         | Optional audience if your session tokens configure one                                                 |
-| `ORIN_ADMIN_CLERK_IDS`       | Exact Clerk subject IDs allowed to administer the workspace                                            |
+| `ORIN_ADMIN_PASSWORD`        | Password for `/admin`, at least 12 characters; server only, never use a `VITE_` prefix                     |
 | `ORIN_WORKER_SECRET`         | Separate random secret, minimum 32 characters, shared only with the scheduler                          |
 
 Name and email are optional verified JWT custom claims. Identity always uses the
 verified Clerk `sub`; users are never linked by matching an email. Clerk sessions
 must have a session ID, valid signature, expiry, issuer, and authorized party.
-Removing a user from the server admin allowlist removes admin access.
+Administration is available at `/admin` (also `/#admin`) and linked from the landing
+footer and chat sidebar. It asks only for the admin password; no Clerk account is
+required. Set `ORIN_ADMIN_PASSWORD` in Vercel for the desired environments and
+redeploy. Admin sessions expire after eight hours and use signed HttpOnly,
+SameSite cookies (Secure in production). Changing the environment password and
+redeploying invalidates existing sessions. Login attempts are rate-limited in
+Neon, and admin writes reject cross-site requests. The password is never saved
+in browser storage or sent with subsequent API calls. Clerk admin IDs do not
+bypass the password gate.
 
 All browser data access goes through the backend. Database credentials are never
 exposed to browser code. The frontend obtains a short-lived Clerk session token
@@ -224,6 +232,7 @@ npm run check
 npm run build
 npx playwright install chromium
 npm run verify:workspace
+npm run verify:admin
 npm run verify:landing
 npm run test:e2e
 ```
