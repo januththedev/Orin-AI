@@ -46,7 +46,7 @@
     "@vercel/blob": "2.3.2",
     "jose": "6.2.12",
     "jstat": "1.9.6",
-    "katex": "0.16.38",
+    "katex": "0.18.2",
     "lucide-react": "1.61.0",
     "mathjs": "15.2.0",
     "nerdamer": "1.1.13",
@@ -73,9 +73,9 @@
     "babel-plugin-react-compiler": "1.0.0",
     "oxc-transform-react": "0.145.0",
     "postcss": "8.5.28",
-    "tailwindcss": "3.4.3",
+    "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
-    "vite": "8.3.1",
+    "vite": "8.3.5",
     "vitest": "5.0.3"
   },
   "author": {
