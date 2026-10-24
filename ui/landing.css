@@ -2356,3 +2356,7 @@
 }
 
 .orin-landing img.lp-brand-logo { flex-shrink: 0; object-fit: contain; }
+
+.lp-desktop-nav .lp-study-nav { color: inherit; text-decoration: none; font-size: 12px; }
+.lp-mobile-nav .lp-study-nav { display: flex; align-items: center; justify-content: space-between; padding: 15px 0; color: inherit; text-decoration: none; }
+.lp-student-entry { display: inline-flex; align-items: center; gap: 9px; color: var(--lp-ink); font-size: 12px; text-decoration: none; border-bottom: 1px solid #b9c4b6; padding-bottom: 5px; margin: 24px 0 0; }

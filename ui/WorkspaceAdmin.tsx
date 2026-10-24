@@ -175,6 +175,23 @@ export default function WorkspaceAdmin({
       setBusy("");
     }
   };
+  const importStudentPacks = async () => {
+    if (busy) return;
+    setBusy('knowledge.seed'); setError(''); setNotice('Preparing student packs…');
+    try {
+      let offset: number | null = 0;
+      let processed = 0;
+      while (offset !== null) {
+        const result = await api('knowledge.seed', { offset, limit: 4 });
+        processed += result.processed;
+        setNotice(`Imported or checked ${processed} of ${result.total} student packs…`);
+        offset = result.next;
+      }
+      await load();
+      setNotice('Student packs are available as drafts. Review, index and publish the notes you want Orin to use. Existing published versions are preserved.');
+    } catch (e: any) { setError(e.message); setNotice(''); }
+    finally { setBusy(''); }
+  };
   const tabs = [
     { id: "overview", label: "Overview", icon: Layers },
     { id: "knowledge", label: "Knowledge", icon: BookOpen },
@@ -577,6 +594,11 @@ export default function WorkspaceAdmin({
               Add knowledge
             </button>
           </div>
+          <section className="admin-card student-seed-card">
+            <BookOpen size={23}/>
+            <div><h3>Sri Lankan student foundations</h3><p>50 O/L & A/L packs and 8 practical Sri Lanka guides. Original notes and exercises with source-access details; teacher review pending. Importing creates drafts and makes no provider calls.</p><a href="/learn" target="_blank" rel="noreferrer">Browse the study library</a></div>
+            <button className="button" disabled={!!busy} onClick={() => void importStudentPacks()}>{busy === 'knowledge.seed' ? <LoaderCircle className="spin" size={15}/> : <Plus size={15}/>}Import student drafts</button>
+          </section>
           <input
             type="file"
             hidden

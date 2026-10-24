@@ -1,3 +1,4 @@
+import { importStudentBatch } from "./student-bundle.js";
 import { adminAuth } from "./admin-auth.js";
 import { tick } from "./jobs.js";
 import { randomUUID, timingSafeEqual } from "node:crypto";
@@ -313,6 +314,11 @@ export function createWorkspaceHandler({
         embeddingSpace: space || null,
       });
       return res.status(200).json({ ok: true });
+    }
+    if (action === "knowledge.seed") {
+      const result = await importStudentBatch(repository, { offset: body.offset ?? 0, limit: body.limit ?? 4 }, uid);
+      await audit({ bundle: "student-foundations", offset: body.offset ?? 0, processed: result.processed });
+      return res.status(200).json(result);
     }
     if (action === "knowledge.upload") {
       if (body.id) uuid(body.id);

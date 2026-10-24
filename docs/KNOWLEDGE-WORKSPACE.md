@@ -266,3 +266,33 @@ without dropping existing data. It enables pgvector and prefers
 `DATABASE_URL_UNPOOLED` when provided; API requests use the pooled `DATABASE_URL`.
 Database credentials belong only in ignored local environment files and Vercel
 server environment variables, never in source files or `VITE_` variables.
+
+## Student knowledge release
+
+The public `/learn` page offers 50 academic foundation packs (20 O/L, 30 A/L)
+and 8 practical Sri Lanka guides. There are 332 original Q&A records, supplied
+as Markdown, JSONL, a source/coverage manifest, and a ZIP archive. English notes
+include Sinhala/Tamil subject-search aliases; complete translations are not
+included. Related optional subjects are grouped, and language/aesthetic packs
+mainly provide study methods. These packs do not cover every syllabus competency.
+
+Sources were researched on 2026-10-24. Each reference records its access status
+and edition limits. Some documents were only available as search metadata.
+Official resource links establish context, not government authorship or
+endorsement of original answers. The original notes do not relicense third-party
+source material. Teacher review is pending. No official papers,
+complete textbooks or marking schemes are copied into this release.
+
+Run `npm run knowledge:build` to rebuild the public artifacts. `npm run build`
+also rebuilds them. `npm run knowledge:import` prints a dry run; add `-- --apply`
+to create or update drafts in the configured Neon database. The admin Knowledge
+tab imports the same bundle in bounded batches. Imports are idempotent by
+source/hash, preserve published versions, and make no embedding-provider calls.
+A shared database lease prevents overlapping import batches.
+Review, index and explicitly publish each approved pack before chat retrieval
+uses it. Existing provider configuration and semantic-indexing requirements apply.
+
+Students can search/filter packs, read notes, practise with hidden reference
+answers, mark questions as self-reviewed locally, download data, and send a
+question to chat. Self-review is not automatic grading. Timetables, eligibility,
+fees, cutoffs and safety warnings must be checked through current official sources.

@@ -692,6 +692,7 @@ const App: React.FC = () => {
 };
 
 const KnowledgeWorkspace = React.lazy(() => import('./ui/WorkspaceApp'));
+const StudyLibrary = React.lazy(() => import('./ui/StudentLibrary'));
 const PasswordAdmin = React.lazy(() => import('./ui/AdminApp'));
 const PublicLanding = React.lazy(() => import('./ui/PublicLanding'));
 function Root() {
@@ -701,14 +702,17 @@ function Root() {
     window.addEventListener('hashchange', update);
     return () => window.removeEventListener('hashchange', update);
   }, []);
+  const start = (prompt?: string) => {
+    try { if (prompt) sessionStorage.setItem('orin_landing_prompt', prompt); else sessionStorage.removeItem('orin_landing_prompt'); } catch {}
+    if (window.location.pathname !== '/') window.location.assign('/#chat');
+    else window.location.hash = 'chat';
+  };
+  if (/^\/learn\/?$/.test(window.location.pathname) || hash === '#learn') return <React.Suspense fallback={<PageFallback />}><StudyLibrary onAsk={start} /></React.Suspense>;
   if (/^\/admin\/?$/.test(window.location.pathname) || /^#admin(?:$|[/?])/.test(hash)) return <React.Suspense fallback={<PageFallback />}><PasswordAdmin /></React.Suspense>;
   if (/^#(device-auth|privacy|terms|downloads|voice|translate)/.test(hash) || (import.meta as any).env.VITE_LEGACY_WORKSPACE === '1') return <App />;
   const demo = (import.meta as any).env.DEV && (import.meta as any).env.VITE_ORIN_LOCAL_DEMO === '1';
   const workspace = /^#(chat|signin|admin)/.test(hash) || (demo && hash !== '#home');
-  const start = (prompt?: string) => {
-    try { if (prompt) sessionStorage.setItem('orin_landing_prompt', prompt); else sessionStorage.removeItem('orin_landing_prompt'); } catch {}
-    window.location.hash = 'chat';
-  };
+
   return <React.Suspense fallback={<div style={{background:'#f8f7f2',height:'100dvh'}} />}>
     {workspace ? <KnowledgeWorkspace /> : <PublicLanding onStart={start} onSignIn={() => { window.location.hash = 'signin'; }} />}
   </React.Suspense>;

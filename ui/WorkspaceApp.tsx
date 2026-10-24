@@ -551,23 +551,23 @@ function Shell({
   const suggestions = [
     {
       icon: Pencil,
-      label: "Create something",
-      prompt: "Help me turn an idea into a clear, practical plan.",
+      label: "Plan my revision",
+      prompt: "Help me make a realistic revision plan. Ask my O/L or A/L level, exam year, subjects, preferred language and available study time first.",
     },
     {
       icon: BookOpen,
-      label: "Learn a little",
-      prompt: "Explain a fascinating concept with a simple example.",
+      label: "Explain a topic",
+      prompt: "Help me understand a Sri Lankan O/L or A/L topic with a simple example. Ask my subject, exam year and preferred language.",
     },
     {
       icon: Brain,
-      label: "Think it through",
-      prompt: "Help me compare my options. Ask me what I am deciding first.",
+      label: "Quiz me",
+      prompt: "Quiz me on a topic I am revising. Ask my subject and level, give one original practice question at a time, and explain my mistakes.",
     },
     {
       icon: Command,
-      label: "Write some code",
-      prompt: "Help me build a small project. Ask me what I want to create.",
+      label: "Check my working",
+      prompt: "Help me check my working step by step. Ask for the question, my attempt, level and subject. Do not call it an official marking scheme.",
     },
   ];
   const composer = (
@@ -723,6 +723,7 @@ function Shell({
           )}
         </nav>
         <div className="sidebar-bottom">
+          <button className="sidebar-action" onClick={() => window.location.assign('/learn')}><BookOpen size={17}/><span>Student library</span></button>
             <button
               className={`sidebar-action ${view === "admin" ? "selected" : ""}`}
               onClick={() => {
@@ -989,7 +990,7 @@ function Shell({
                     </h1>
                   </div>
                   <p>
-                    Think bigger. Find the right words. Make something yours.
+                    Understand a topic. Practise a question. Find your next step.
                   </p>
                   {composer}
                   <div className="suggestion-row">

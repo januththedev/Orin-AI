@@ -23,7 +23,11 @@
     "verify:workspace": "node scripts/verify-workspace.mjs",
     "test:integration": "vitest run tests/integration",
     "verify:landing": "node scripts/verify-landing.mjs",
-    "verify:admin": "node scripts/verify-admin.mjs"
+    "verify:admin": "node scripts/verify-admin.mjs",
+    "knowledge:build": "node scripts/build-student-knowledge.mjs",
+    "knowledge:import": "node --env-file-if-exists=.env.local scripts/import-student-knowledge.mjs",
+    "prebuild": "npm run knowledge:build",
+    "verify:students": "node scripts/verify-student-library.mjs"
   },
   "dependencies": {
     "@clerk/react": "6.18.0",

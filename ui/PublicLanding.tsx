@@ -75,7 +75,7 @@ const examples = [
 const faqs = [
   {
     q: "What can I do with Orin?",
-    a: "Explore an idea, work through a question, write something, or get help with code. Start with a rough thought and keep the conversation going until it becomes useful.",
+    a: "Work through O/L and A/L topics, practise questions, plan your revision, and explore practical Sri Lanka guides. The study library offers original foundation notes; it is not a complete syllabus or an official marking scheme.",
   },
   {
     q: "Can I use my own language?",
@@ -169,6 +169,7 @@ export default function PublicLanding({ onStart, onSignIn }: Props) {
           </span>
         </a>
         <nav className="lp-desktop-nav" aria-label="Main navigation">
+          <a className="lp-study-nav" href="/learn">Study library</a>
           <button onClick={() => go("lp-experience")}>The experience</button>
           <button onClick={() => go("lp-features")}>A little more Orin</button>
           <button onClick={() => go("lp-questions")}>Good questions</button>
@@ -201,6 +202,7 @@ export default function PublicLanding({ onStart, onSignIn }: Props) {
           id="lp-mobile-nav"
           aria-label="Mobile navigation"
         >
+          <a className="lp-study-nav" href="/learn">Study library <ArrowUpRight size={16} /></a>
           <button onClick={() => go("lp-experience")}>
             The experience
             <ArrowUpRight size={16} />
@@ -229,7 +231,7 @@ export default function PublicLanding({ onStart, onSignIn }: Props) {
           <div className="lp-hero-copy">
             <div className="lp-eyebrow">
               <span className="lp-status-dot" />
-              YOUR IDEAS, IN GOOD COMPANY
+              FOR SRI LANKAN O/L & A/L STUDENTS
             </div>
             <h1>
               A little clarity.
@@ -241,11 +243,10 @@ export default function PublicLanding({ onStart, onSignIn }: Props) {
               </span>
             </h1>
             <p>
-              A question. A half-formed thought. That thing
-              <br className="lp-desktop-break" /> you can’t quite put into
-              words.
+              A difficult topic. Your next exam. A question
+              <br className="lp-desktop-break" /> you want to understand, not just memorise.
               <br />
-              <strong>There’s a place for it here.</strong>
+              <strong>Let’s work through it together.</strong>
             </p>
             <div className="lp-hero-actions">
               <button
@@ -265,6 +266,7 @@ export default function PublicLanding({ onStart, onSignIn }: Props) {
                 </span>
               </button>
             </div>
+            <a className="lp-student-entry" href="/learn"><BookOpen size={16} /><span>Explore 50 O/L & A/L foundation packs</span><ArrowRight size={15} /></a>
             <div className="lp-language-note">
               <span>Made for the way you think.</span>
               <span className="lp-small-dot" />
@@ -713,6 +715,7 @@ export default function PublicLanding({ onStart, onSignIn }: Props) {
           .
         </p>
         <nav aria-label="Footer navigation">
+          <a href="/learn">Study library</a>
           <a href="/admin">Admin</a>
           <a href="#privacy">Privacy</a>
           <a href="#terms">Terms</a>

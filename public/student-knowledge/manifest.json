@@ -1,0 +1,2099 @@
+{
+  "schemaVersion": 1,
+  "release": "2026-10-24-foundations",
+  "createdAt": "2026-10-24",
+  "title": "Orin Student Knowledge — Sri Lankan O/L and A/L foundations",
+  "description": "50 academic foundation packs and 8 Sri Lanka student-service guides; English notes with Sinhala/Tamil subject-search aliases.",
+  "academicPacks": 50,
+  "practicalPacks": 8,
+  "totalPacks": 58,
+  "totalRecords": 332,
+  "reviewStatus": "Subject-teacher review pending. Not complete curricula; not official past papers or marking schemes.",
+  "coverageNote": "Core subjects are split by topic; related electives are grouped. A subject name in a group does not imply complete subject coverage. Language and aesthetic packs mainly teach study and analysis methods.",
+  "accessNote": "Source-access status is recorded individually. Some references were verified only through search metadata; blocked and oversized documents were not fully read or ingested.",
+  "translations": "Full Sinhala and Tamil answer translations are not included. Search aliases are provided; official resources offer medium-specific material.",
+  "liveInformation": "Do not use stored data as a current timetable, fee, cutoff, deadline, eligibility ruling, political-office list or emergency warning.",
+  "license": "Original Orin editorial content; third-party references retain their own rights.",
+  "sources": [
+    {
+      "id": "ethak10",
+      "title": "Ministry of Education e-Thaksalawa: Grade 10 Sinhala-medium course catalog",
+      "url": "https://e-thaksalawa.moe.gov.lk/lcms/course/index.php?categoryid=47",
+      "access": "page-opened",
+      "role": "curriculum/resource locator; not answer-key provenance",
+      "edition": null,
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "ethak11",
+      "title": "Ministry of Education e-Thaksalawa: Grade 11 English-medium course catalog",
+      "url": "https://e-thaksalawa.moe.gov.lk/lcms/course/index.php?categoryid=37",
+      "access": "page-opened",
+      "role": "curriculum/resource locator; catalog includes old-syllabus labels",
+      "edition": null,
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "nie-syllabus",
+      "title": "National Institute of Education: syllabus selector",
+      "url": "https://nie.lk/selesyll",
+      "access": "page-opened",
+      "role": "find the applicable syllabus and medium; exact competency mapping not completed",
+      "edition": null,
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "nie-resources",
+      "title": "NIE: additional learning and practical resources",
+      "url": "https://nie.lk/showom",
+      "access": "page-opened",
+      "role": "official resource locator; linked materials retain their original rights",
+      "edition": null,
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "al-directory",
+      "title": "Department of Examinations: subject names and numbers",
+      "url": "https://doenets.lk/documents/news-headlines/Common_Documentor3languages_Subject_List.pdf",
+      "access": "pdf-opened",
+      "role": "archival subject-family reference; not current subject-selection authority",
+      "edition": "archival directory surfaced as 2019; includes legacy subjects",
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "nie-combined",
+      "title": "NIE: Combined Mathematics syllabus",
+      "url": "https://www.nie.lk/pdffiles/tg/eAL_Syl%20ComMaths.pdf",
+      "access": "search-result-metadata",
+      "role": "subject orientation only; verify edition with NIE",
+      "edition": null,
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "nie-economics",
+      "title": "NIE: Economics syllabus",
+      "url": "https://nie.lk/pdffiles/tg/eALSyl%20Econ.pdf",
+      "access": "search-result-metadata",
+      "role": "subject orientation; not a verbatim or complete syllabus reproduction",
+      "edition": "2017-era syllabus; current applicability requires confirmation",
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "nie-home-economics",
+      "title": "NIE: Home Economics syllabus",
+      "url": "https://nie.lk/pdffiles/tg/eALSyl%20HomeEco.pdf",
+      "access": "search-result-metadata",
+      "role": "subject orientation only",
+      "edition": "document states implementation from 2017; verify current applicability",
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "doenets",
+      "title": "Department of Examinations",
+      "url": "https://www.doenets.lk/",
+      "access": "search-result-metadata",
+      "role": "live exam notices and service navigation; no fixed dates stored",
+      "edition": null,
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "doenets-results",
+      "title": "Department of Examinations: results",
+      "url": "https://www.doenets.lk/examresults",
+      "access": "page-opened-no-extractable-text",
+      "role": "official service locator",
+      "edition": null,
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "ugc",
+      "title": "UGC admissions handbook 2025/2026",
+      "url": "https://www.ugc.ac.lk/downloads/admissions/Handbook_2025_26/student_handbook_english.pdf",
+      "access": "search-result-metadata-full-pdf-too-large",
+      "role": "admissions reference; check current handbook and notices",
+      "edition": "2025/2026; full PDF was not ingested",
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "dcs",
+      "title": "Department of Census and Statistics: population statistics",
+      "url": "https://www.statistics.gov.lk/Population/StaticalInformation",
+      "access": "search-result-metadata-and-page-opened-no-extractable-text",
+      "role": "dated census tables and statistical definitions",
+      "edition": null,
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "tvec",
+      "title": "TVEC: registration and accreditation information",
+      "url": "https://www.nvq.gov.lk/Insreg_Home/Insreg_Online_Home_More.php",
+      "access": "search-result-metadata",
+      "role": "verify institution and exact course status",
+      "edition": null,
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "vta",
+      "title": "VTA: National Vocational Qualification",
+      "url": "https://www.vtasl.gov.lk/index.php/national-vocational-qualification",
+      "access": "page-opened",
+      "role": "pathway overview; recognition and progression require receiving-body confirmation",
+      "edition": null,
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "drp",
+      "title": "Department for Registration of Persons: first-time NIC",
+      "url": "https://drp.gov.lk/en/normal.php",
+      "access": "search-result-metadata",
+      "role": "check live document and application requirements",
+      "edition": null,
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "drp-forms",
+      "title": "DRP: forms and guidelines",
+      "url": "https://drp.gov.lk/en/downloads.php",
+      "access": "search-result-metadata",
+      "role": "official forms locator",
+      "edition": null,
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "immigration",
+      "title": "Department of Immigration and Emigration",
+      "url": "https://www.immigration.gov.lk/",
+      "access": "page-opened",
+      "role": "live passport requirements and official service navigation",
+      "edition": null,
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "rail",
+      "title": "Sri Lanka Railways: train schedule service",
+      "url": "https://www.eservices.railway.gov.lk/schedule/homeAction.action?lag=en",
+      "access": "search-result-metadata",
+      "role": "live schedule lookup; stored notes do not provide current services",
+      "edition": null,
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "rail-reservation",
+      "title": "Sri Lanka Railways: reservation service",
+      "url": "https://seatreservation.railway.gov.lk/mtktwebslr/",
+      "access": "search-result-metadata",
+      "role": "verify booking category, terms and availability live",
+      "edition": null,
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "cbsl",
+      "title": "Central Bank: financial-literacy curriculum",
+      "url": "https://www.cbsl.gov.lk/sites/default/files/cbslweb_documents/publications/otherpub/financial_literacy_curriculum_e.pdf",
+      "access": "search-result-metadata-full-pdf-fetch-forbidden",
+      "role": "further financial-education reference; arithmetic examples here are original",
+      "edition": null,
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "cert",
+      "title": "Sri Lanka CERT: FAQs and reporting navigation",
+      "url": "https://cert.gov.lk/faqs",
+      "access": "page-opened",
+      "role": "check current incident-specific reporting channels",
+      "edition": null,
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "library",
+      "title": "National Library and Documentation Services Board",
+      "url": "https://www.natlib.lk/",
+      "access": "page-opened",
+      "role": "library-service and catalogue navigation",
+      "edition": null,
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "dmc",
+      "title": "Disaster Management Centre",
+      "url": "https://www.dmc.gov.lk/",
+      "access": "page-opened",
+      "role": "live warnings and notices; do not infer current safety from stored content",
+      "edition": null,
+      "checkedAt": "2026-10-24"
+    },
+    {
+      "id": "who-diet",
+      "title": "WHO: healthy diet",
+      "url": "https://www.who.int/news-room/fact-sheets/detail/healthy-diet",
+      "access": "page-opened",
+      "role": "general public-health education; not personal clinical guidance",
+      "edition": "26 January 2026 page date",
+      "checkedAt": "2026-10-24"
+    }
+  ],
+  "datasets": [
+    {
+      "id": "ol-math-algebra",
+      "number": 1,
+      "level": "OL",
+      "title": "Mathematics: algebra and number",
+      "subjects": [
+        "Mathematics"
+      ],
+      "aliases": "ගණිතය கணிதம் algebra fractions",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-math-algebra.md",
+      "sha256": "50919c1a47301bd3e98ef90643320c32995d21d01cef1ce2130858537d815877",
+      "bytes": 3827,
+      "recordCount": 6
+    },
+    {
+      "id": "ol-math-geometry",
+      "number": 2,
+      "level": "OL",
+      "title": "Mathematics: geometry and measurement",
+      "subjects": [
+        "Mathematics"
+      ],
+      "aliases": "ගණිතය கணிதம் geometry angles area",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-math-geometry.md",
+      "sha256": "24537b4e3a5bae02b0272d38e522aecd8a51c9c920a4b0a820322060f8eca25c",
+      "bytes": 4025,
+      "recordCount": 6
+    },
+    {
+      "id": "ol-math-statistics",
+      "number": 3,
+      "level": "OL",
+      "title": "Mathematics: statistics and probability",
+      "subjects": [
+        "Mathematics"
+      ],
+      "aliases": "ගණිතය கணிதம் statistics probability",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-math-statistics.md",
+      "sha256": "27be5f2978a8ac90385a3701b72ecdb6b189c944e5d0a28eda9fae654092a8d7",
+      "bytes": 4088,
+      "recordCount": 6
+    },
+    {
+      "id": "ol-science-physics",
+      "number": 4,
+      "level": "OL",
+      "title": "Science: forces, energy and electricity",
+      "subjects": [
+        "Science"
+      ],
+      "aliases": "විද්‍යාව அறிவியல் force electricity energy",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-science-physics.md",
+      "sha256": "305a267d75079de000b8dfac46442f3ae4194a0738c8ffc70af2bc283a1f5c85",
+      "bytes": 4209,
+      "recordCount": 6
+    },
+    {
+      "id": "ol-science-chemistry",
+      "number": 5,
+      "level": "OL",
+      "title": "Science: atoms, reactions and materials",
+      "subjects": [
+        "Science"
+      ],
+      "aliases": "විද්‍යාව அறிவியல் chemistry atoms acids",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-science-chemistry.md",
+      "sha256": "525865ea1e6fe6a7ac931a611db318693afaaebcbf788fde95aa7d61e070db4b",
+      "bytes": 4173,
+      "recordCount": 6
+    },
+    {
+      "id": "ol-science-biology",
+      "number": 6,
+      "level": "OL",
+      "title": "Science: cells, plants and the human body",
+      "subjects": [
+        "Science"
+      ],
+      "aliases": "විද්‍යාව அறிவியல் biology cells photosynthesis",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-science-biology.md",
+      "sha256": "4455569c710387e00fdd7110738cb9188f210347888c0c861ec476345a290cc6",
+      "bytes": 4329,
+      "recordCount": 6
+    },
+    {
+      "id": "ol-sinhala",
+      "number": 7,
+      "level": "OL",
+      "title": "Sinhala language and literature",
+      "subjects": [
+        "Sinhala Language & Literature"
+      ],
+      "aliases": "සිංහල භාෂාව සාහිත්‍යය சிங்களம்",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "foundations and study methods",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-sinhala.md",
+      "sha256": "0e68aab2edeb7cc24bdbd1e920ed54b99ededc2f91f642d8844536a541cec2c3",
+      "bytes": 4138,
+      "recordCount": 6
+    },
+    {
+      "id": "ol-tamil",
+      "number": 8,
+      "level": "OL",
+      "title": "Tamil language and literature",
+      "subjects": [
+        "Tamil Language & Literature",
+        "Second Language Tamil"
+      ],
+      "aliases": "தமிழ் மொழி இலக்கியம் දෙමළ",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "foundations and study methods",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-tamil.md",
+      "sha256": "2b0b9f46f2203b71d8f72737b2b8635f0b9ed59a74c279674d09bd8e82533911",
+      "bytes": 4115,
+      "recordCount": 6
+    },
+    {
+      "id": "ol-english",
+      "number": 9,
+      "level": "OL",
+      "title": "English language: grammar and communication",
+      "subjects": [
+        "English"
+      ],
+      "aliases": "English ඉංග්‍රීසි ஆங்கிலம் grammar writing",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "foundations and study methods",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-english.md",
+      "sha256": "f1dd6c18abcf81e214f7f757a019ef088f365cb2195095491578ac75cbbf25cc",
+      "bytes": 4071,
+      "recordCount": 6
+    },
+    {
+      "id": "ol-history",
+      "number": 10,
+      "level": "OL",
+      "title": "History: Sri Lanka and historical reasoning",
+      "subjects": [
+        "History"
+      ],
+      "aliases": "ඉතිහාසය வரலாறு history Sri Lanka",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "foundations and study methods",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-history.md",
+      "sha256": "a46d7647dc476b54eee8ff876c478e3f303afa45c5eb13576cdeb06a8f766271",
+      "bytes": 4223,
+      "recordCount": 6
+    },
+    {
+      "id": "ol-geography",
+      "number": 11,
+      "level": "OL",
+      "title": "Geography: maps, climate and settlements",
+      "subjects": [
+        "Geography"
+      ],
+      "aliases": "භූගෝල විද්‍යාව புவியியல் geography maps",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-geography.md",
+      "sha256": "d493cd580ded485c0575325854b218f369cbed7bc5b6fa846f6702b423be2c14",
+      "bytes": 4007,
+      "recordCount": 6
+    },
+    {
+      "id": "ol-civics",
+      "number": 12,
+      "level": "OL",
+      "title": "Civic education and citizenship",
+      "subjects": [
+        "Civic Education"
+      ],
+      "aliases": "පුරවැසි අධ්‍යාපනය குடியியல் civic democracy",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-civics.md",
+      "sha256": "bf9cb1ddb0643d6abd6e4797d7571db764159d11c2a0cd7fae00c2e37b831551",
+      "bytes": 4118,
+      "recordCount": 6
+    },
+    {
+      "id": "ol-business-accounting",
+      "number": 13,
+      "level": "OL",
+      "title": "Business and accounting foundations",
+      "subjects": [
+        "Business Studies & Accounting",
+        "Entrepreneurship Studies"
+      ],
+      "aliases": "ව්‍යාපාර ගිණුම්කරණය வணிகம் கணக்கியல்",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-business-accounting.md",
+      "sha256": "825784effb17ea8ecabc15d74e86f76d4bb71c73689a17cee8a374ada5136220",
+      "bytes": 4062,
+      "recordCount": 6
+    },
+    {
+      "id": "ol-ict",
+      "number": 14,
+      "level": "OL",
+      "title": "ICT: computers, data and algorithms",
+      "subjects": [
+        "Information & Communication Technology"
+      ],
+      "aliases": "ICT තොරතුරු තාක්ෂණය தகவல் தொழில்நுட்பம்",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-ict.md",
+      "sha256": "01ab04deec6c90ed0376662d77972c5a8f5ef3d36fbd53b4ab3e5a3ce1b8f1b7",
+      "bytes": 3910,
+      "recordCount": 6
+    },
+    {
+      "id": "ol-agriculture",
+      "number": 15,
+      "level": "OL",
+      "title": "Agriculture, food technology and fisheries",
+      "subjects": [
+        "Agriculture & Food Technology",
+        "Fisheries & Food Technology"
+      ],
+      "aliases": "කෘෂිකර්මය விவசாயம் agriculture fisheries",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-agriculture.md",
+      "sha256": "daf15c9574fa591fd895fa3577621f6d63eff111400877bebb3c6d6eb3f31893",
+      "bytes": 4187,
+      "recordCount": 6
+    },
+    {
+      "id": "ol-health-pe",
+      "number": 16,
+      "level": "OL",
+      "title": "Health and physical education",
+      "subjects": [
+        "Health & Physical Education"
+      ],
+      "aliases": "සෞඛ්‍ය ශාරීරික අධ්‍යාපනය சுகாதாரம் விளையாட்டு",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus",
+        "who-diet"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-health-pe.md",
+      "sha256": "964f52efdc4fbdccf470e89f18e27e17ce6f4ec6f357589fa05e1be787ae3197",
+      "bytes": 4418,
+      "recordCount": 6
+    },
+    {
+      "id": "ol-religions",
+      "number": 17,
+      "level": "OL",
+      "title": "Religion: distinct traditions and respectful study",
+      "subjects": [
+        "Buddhism",
+        "Saivaneri",
+        "Islam",
+        "Christianity",
+        "Catholicism"
+      ],
+      "aliases": "බුද්ධ ධර්මය ආගම சமயம் மதம்",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "foundations and study methods",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-religions.md",
+      "sha256": "1a8aca83034f7dcd1c1bc1a6cb89f0cca56b514349a9147d6e719d5ec70b819f",
+      "bytes": 4375,
+      "recordCount": 6
+    },
+    {
+      "id": "ol-aesthetics",
+      "number": 18,
+      "level": "OL",
+      "title": "Art, music, dance, drama and craft",
+      "subjects": [
+        "Art",
+        "Music (Oriental)",
+        "Music (Carnatic)",
+        "Music (Western)",
+        "Dancing",
+        "Drama & Theatre",
+        "Art & Craft"
+      ],
+      "aliases": "චිත්‍ර සංගීත නැටුම් නාට්‍ය கலை இசை நடனம்",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "foundations and study methods",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-aesthetics.md",
+      "sha256": "7bc3a36137a2ee28c917149bc53946fafe21a1fec6db72ea6ce4d0c559218df1",
+      "bytes": 4110,
+      "recordCount": 6
+    },
+    {
+      "id": "ol-languages-literature",
+      "number": 19,
+      "level": "OL",
+      "title": "Additional languages and literary appreciation",
+      "subjects": [
+        "Second Language Sinhala",
+        "Second Language Tamil",
+        "Sinhala Literature",
+        "Tamil Literature",
+        "English Literature",
+        "Arabic Literature",
+        "Pali",
+        "Sanskrit",
+        "French",
+        "German",
+        "Hindi",
+        "Japanese",
+        "Korean",
+        "Russian",
+        "Chinese",
+        "Arabic"
+      ],
+      "aliases": "භාෂා සාහිත්‍ය மொழிகள் இலக்கியம் languages literature",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "foundations and study methods",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-languages-literature.md",
+      "sha256": "a55720cfd0a42bbec3da500087f395a0be4a2be6ac8371420967b93b3bf871e4",
+      "bytes": 4425,
+      "recordCount": 6
+    },
+    {
+      "id": "ol-practical-technical",
+      "number": 20,
+      "level": "OL",
+      "title": "Practical subjects: design, home economics and media",
+      "subjects": [
+        "Design & Construction Technology",
+        "Design & Mechanical Technology",
+        "Design, Electrical & Electronic Technology",
+        "Home Economics",
+        "Communication & Media Studies",
+        "Electronic Writing & Shorthand"
+      ],
+      "aliases": "තාක්ෂණ ගෘහ ආර්ථික මාධ්‍ය தொழில்நுட்பம் ஊடகம்",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ethak10",
+        "ethak11",
+        "nie-syllabus"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/ol-practical-technical.md",
+      "sha256": "8e4d66b716dc6e88ee0477e1ddeb8d7b863219997eec635bd599a93b8fba18ba",
+      "bytes": 4481,
+      "recordCount": 6
+    },
+    {
+      "id": "al-mathematics-pure",
+      "number": 21,
+      "level": "AL",
+      "title": "Mathematics: algebra, functions and calculus",
+      "subjects": [
+        "Combined Mathematics",
+        "Mathematics",
+        "Higher Mathematics"
+      ],
+      "aliases": "සංයුක්ත ගණිතය கணிதம் calculus functions",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory",
+        "nie-combined"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-mathematics-pure.md",
+      "sha256": "3e29a4a618d51e6783eb29ca4775cecf1fcc8d54cf05dc4bad95b6db752cb417",
+      "bytes": 4134,
+      "recordCount": 6
+    },
+    {
+      "id": "al-mathematics-applied",
+      "number": 22,
+      "level": "AL",
+      "title": "Mathematics: mechanics, vectors and probability",
+      "subjects": [
+        "Combined Mathematics",
+        "Higher Mathematics"
+      ],
+      "aliases": "ව්‍යවහාරික ගණිතය பிரயோக கணிதம் vectors mechanics",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory",
+        "nie-combined"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-mathematics-applied.md",
+      "sha256": "e74d030cd1c57ef309e2be5e915f967ab3ffba98de51ce0185b2a698625d5f47",
+      "bytes": 4194,
+      "recordCount": 6
+    },
+    {
+      "id": "al-home-economics-media",
+      "number": 23,
+      "level": "AL",
+      "title": "Home Economics and Communication & Media Studies",
+      "subjects": [
+        "Home Economics",
+        "Communication & Media Studies"
+      ],
+      "aliases": "ගෘහ ආර්ථික විද්‍යාව මාධ්‍ය மனையியல் ஊடகம்",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory",
+        "nie-home-economics"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-home-economics-media.md",
+      "sha256": "c5d7fdf15bdedf386732c38b9e03bd256a3c43003ddd3bba6e5422b8c4e5452b",
+      "bytes": 4538,
+      "recordCount": 6
+    },
+    {
+      "id": "al-physics-mechanics",
+      "number": 24,
+      "level": "AL",
+      "title": "Physics: measurement, motion and mechanics",
+      "subjects": [
+        "Physics"
+      ],
+      "aliases": "භෞතික විද්‍යාව பௌதிகவியல் mechanics motion",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory",
+        "nie-resources"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-physics-mechanics.md",
+      "sha256": "449378eafa1b1b364d42b8b5e2579b3e62a8c5dccfb49ca69f0f07022535685e",
+      "bytes": 4244,
+      "recordCount": 6
+    },
+    {
+      "id": "al-physics-waves-thermal",
+      "number": 25,
+      "level": "AL",
+      "title": "Physics: waves, optics and thermal physics",
+      "subjects": [
+        "Physics"
+      ],
+      "aliases": "තරංග තාප විද්‍යාව அலைகள் வெப்பம் optics",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory",
+        "nie-resources"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-physics-waves-thermal.md",
+      "sha256": "8ffbd3bb0bf397c3e1895fe43e57af9a9aabeb340efdf53e2fd8f94c4f5538f3",
+      "bytes": 4322,
+      "recordCount": 6
+    },
+    {
+      "id": "al-physics-electricity",
+      "number": 26,
+      "level": "AL",
+      "title": "Physics: electricity, fields and modern physics",
+      "subjects": [
+        "Physics"
+      ],
+      "aliases": "විදුලිය ඉලෙක්ට්‍රෝනික மின்சாரம் fields quantum",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory",
+        "nie-resources"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-physics-electricity.md",
+      "sha256": "5e0191c04f59ea45928bbc2421eea39131525e89036ef061956cfabb2244b3f0",
+      "bytes": 4276,
+      "recordCount": 6
+    },
+    {
+      "id": "al-chemistry-physical",
+      "number": 27,
+      "level": "AL",
+      "title": "Chemistry: moles, equilibrium and energetics",
+      "subjects": [
+        "Chemistry"
+      ],
+      "aliases": "රසායන විද්‍යාව இரசாயனவியல் moles equilibrium",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory",
+        "nie-resources"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-chemistry-physical.md",
+      "sha256": "e3ef78c47062c292e223c18425588c337133e494911ff33c2dc6061973c0c96e",
+      "bytes": 4291,
+      "recordCount": 6
+    },
+    {
+      "id": "al-chemistry-organic",
+      "number": 28,
+      "level": "AL",
+      "title": "Chemistry: organic structures and reactions",
+      "subjects": [
+        "Chemistry"
+      ],
+      "aliases": "කාබනික රසායනය கரிம இரசாயனம் organic",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory",
+        "nie-resources"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-chemistry-organic.md",
+      "sha256": "68715391839c965aff985b4a370fc2cbb959e39f51e1942eaaec2fd65bd7d9a2",
+      "bytes": 4273,
+      "recordCount": 6
+    },
+    {
+      "id": "al-chemistry-inorganic",
+      "number": 29,
+      "level": "AL",
+      "title": "Chemistry: bonding, periodicity and qualitative analysis",
+      "subjects": [
+        "Chemistry"
+      ],
+      "aliases": "අකාබනික රසායනය கனிம இரசாயனம் periodic bonding",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory",
+        "nie-resources"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-chemistry-inorganic.md",
+      "sha256": "dfcb6ae3a8f83ef1fb2fe04a073b8fdcb9708b2d1d80f45fd18b05383f94542e",
+      "bytes": 4514,
+      "recordCount": 6
+    },
+    {
+      "id": "al-biology-cell",
+      "number": 30,
+      "level": "AL",
+      "title": "Biology: cells, biomolecules and enzymes",
+      "subjects": [
+        "Biology"
+      ],
+      "aliases": "ජීව විද්‍යාව உயிரியல் cell enzymes",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory",
+        "nie-resources"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-biology-cell.md",
+      "sha256": "a599a746b48eb3c6775656b64ac35e610282eb3ba9a08f9a6e9fafbcc1368db7",
+      "bytes": 4305,
+      "recordCount": 6
+    },
+    {
+      "id": "al-biology-organisms",
+      "number": 31,
+      "level": "AL",
+      "title": "Biology: plant and animal physiology",
+      "subjects": [
+        "Biology"
+      ],
+      "aliases": "ශාක සත්ව உயிரியல் physiology plants",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory",
+        "nie-resources"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-biology-organisms.md",
+      "sha256": "c9e00c9bdd2e083fe40ad7ee4c3325358494d51c5794d95e6476f6040e28ed43",
+      "bytes": 4194,
+      "recordCount": 6
+    },
+    {
+      "id": "al-biology-genetics-ecology",
+      "number": 32,
+      "level": "AL",
+      "title": "Biology: inheritance, evolution and ecology",
+      "subjects": [
+        "Biology"
+      ],
+      "aliases": "ප්‍රවේණිය පරිසරය மரபியல் சூழலியல் genetics",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory",
+        "nie-resources"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-biology-genetics-ecology.md",
+      "sha256": "c6fafc241ed7662fd761b6895878c7c27e26c4b6b9f11e50fce51833bb32bf35",
+      "bytes": 4401,
+      "recordCount": 6
+    },
+    {
+      "id": "al-agricultural-science",
+      "number": 33,
+      "level": "AL",
+      "title": "Agricultural Science: crops, soils and livestock",
+      "subjects": [
+        "Agricultural Science"
+      ],
+      "aliases": "කෘෂි විද්‍යාව விவசாய விஞ்ஞானம்",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory",
+        "nie-resources"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-agricultural-science.md",
+      "sha256": "2305f8fe3dff6c057d4ae25fc57f2757132db1b48a94ed11fbf745a778e8b332",
+      "bytes": 4421,
+      "recordCount": 6
+    },
+    {
+      "id": "al-ict",
+      "number": 34,
+      "level": "AL",
+      "title": "ICT: data, networks, databases and programming",
+      "subjects": [
+        "Information & Communication Technology"
+      ],
+      "aliases": "තොරතුරු සන්නිවේදන තාක්ෂණය தகவல் தொடர்பாடல்",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-ict.md",
+      "sha256": "5c7459e8c3d50f87b0834656c722b44bf25e2cf2b365b8db8106368498c1815e",
+      "bytes": 4068,
+      "recordCount": 6
+    },
+    {
+      "id": "al-accounting",
+      "number": 35,
+      "level": "AL",
+      "title": "Accounting: transactions and financial statements",
+      "subjects": [
+        "Accounting"
+      ],
+      "aliases": "ගිණුම්කරණය கணக்கியல் accounting",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-accounting.md",
+      "sha256": "e8ef58479a92541e596d3b7c4dff5f07bf5c4108ab3aadc6cf3135b2fbe8126a",
+      "bytes": 3987,
+      "recordCount": 6
+    },
+    {
+      "id": "al-business-studies",
+      "number": 36,
+      "level": "AL",
+      "title": "Business Studies: organisations and management",
+      "subjects": [
+        "Business Studies"
+      ],
+      "aliases": "ව්‍යාපාර අධ්‍යයනය வணிகக் கல்வி management",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-business-studies.md",
+      "sha256": "ef226fa88836444cd912e4920e6ef7643c5fac3f6f706aa73b6addc85254835e",
+      "bytes": 4158,
+      "recordCount": 6
+    },
+    {
+      "id": "al-economics",
+      "number": 37,
+      "level": "AL",
+      "title": "Economics: markets, macroeconomics and policy",
+      "subjects": [
+        "Economics"
+      ],
+      "aliases": "ආර්ථික විද්‍යාව பொருளியல் economics",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory",
+        "nie-economics"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-economics.md",
+      "sha256": "5a6b89c20d676eddc5d927cae47b63b7a6dcfaedd156ad26d2a7892fae6fcd3a",
+      "bytes": 4402,
+      "recordCount": 6
+    },
+    {
+      "id": "al-business-statistics",
+      "number": 38,
+      "level": "AL",
+      "title": "Business Statistics: data and inference",
+      "subjects": [
+        "Business Statistics"
+      ],
+      "aliases": "ව්‍යාපාර සංඛ්‍යානය வணிக புள்ளிவிபரம்",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-business-statistics.md",
+      "sha256": "77a1a684318c0622e2a37490ec7a35511306c6f34f0ece010f7613ccf13ec30a",
+      "bytes": 4135,
+      "recordCount": 6
+    },
+    {
+      "id": "al-logic",
+      "number": 39,
+      "level": "AL",
+      "title": "Logic and Scientific Method",
+      "subjects": [
+        "Logic & Scientific Method"
+      ],
+      "aliases": "තර්ක ශාස්ත්‍රය அளவையியல் logic scientific method",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-logic.md",
+      "sha256": "0056ea20da0fda627f04ec17339aebe677f92befa9e0a78cea4f335cca80153a",
+      "bytes": 3800,
+      "recordCount": 6
+    },
+    {
+      "id": "al-political-science",
+      "number": 40,
+      "level": "AL",
+      "title": "Political Science: concepts and institutions",
+      "subjects": [
+        "Political Science"
+      ],
+      "aliases": "දේශපාලන විද්‍යාව அரசியல் science politics",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-political-science.md",
+      "sha256": "9ee1c4cd468499231eb9fc48b70956b6ea50663b3f40841624a4f2b00588b5d6",
+      "bytes": 4264,
+      "recordCount": 6
+    },
+    {
+      "id": "al-geography",
+      "number": 41,
+      "level": "AL",
+      "title": "Geography: physical and human systems",
+      "subjects": [
+        "Geography"
+      ],
+      "aliases": "භූගෝල විද්‍යාව புவியியல் geography",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-geography.md",
+      "sha256": "16ef10cc125538ecd220fe9e00816b2a8b79c24577eb34f87e947f708e9256e3",
+      "bytes": 4086,
+      "recordCount": 6
+    },
+    {
+      "id": "al-history",
+      "number": 42,
+      "level": "AL",
+      "title": "History: Sri Lanka, India, Europe and the modern world",
+      "subjects": [
+        "History of Sri Lanka & India",
+        "History of Sri Lanka & Europe",
+        "History of Sri Lanka & Modern World"
+      ],
+      "aliases": "ඉතිහාසය வரலாறு history Sri Lanka India Europe",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "foundations and study methods",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-history.md",
+      "sha256": "81f32cacea6eaf9743d01ea568da9b054f52588893cfb02bd3ce5437e2894564",
+      "bytes": 4103,
+      "recordCount": 6
+    },
+    {
+      "id": "al-sinhala",
+      "number": 43,
+      "level": "AL",
+      "title": "Sinhala: language, literature and criticism",
+      "subjects": [
+        "Sinhala"
+      ],
+      "aliases": "සිංහල භාෂාව සාහිත්‍යය",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "foundations and study methods",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-sinhala.md",
+      "sha256": "bb2039ec3e1878311527fa690e726fb248f78b345c98c222bf91b5292ef5fd00",
+      "bytes": 4049,
+      "recordCount": 6
+    },
+    {
+      "id": "al-tamil",
+      "number": 44,
+      "level": "AL",
+      "title": "Tamil: language, literature and criticism",
+      "subjects": [
+        "Tamil"
+      ],
+      "aliases": "தமிழ் மொழி இலக்கியம் விமர்சனம் දෙමළ",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "foundations and study methods",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-tamil.md",
+      "sha256": "a58252c6538fe053df577c2b4cb3f9016781b8f0ae4488dfacd2be750310b356",
+      "bytes": 3973,
+      "recordCount": 6
+    },
+    {
+      "id": "al-english",
+      "number": 45,
+      "level": "AL",
+      "title": "English: literature, argument and language",
+      "subjects": [
+        "English"
+      ],
+      "aliases": "English literature ඉංග්‍රීසි ஆங்கில இலக்கியம்",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "foundations and study methods",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-english.md",
+      "sha256": "236da44f0ed32c1396528dcae49d5bc4d649e7bc78464297603340984c3aff29",
+      "bytes": 3935,
+      "recordCount": 6
+    },
+    {
+      "id": "al-classical-foreign-languages",
+      "number": 46,
+      "level": "AL",
+      "title": "Classical and foreign languages: study methods",
+      "subjects": [
+        "Pali",
+        "Sanskrit",
+        "Arabic",
+        "Malay",
+        "French",
+        "German",
+        "Russian",
+        "Hindi",
+        "Chinese",
+        "Japanese"
+      ],
+      "aliases": "පාලි සංස්කෘත භාෂා மொழிகள் languages",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "foundations and study methods",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-classical-foreign-languages.md",
+      "sha256": "ad410cda1857d5d7b8da001ccffad49816725fcda260b94429ecb53f902bc4aa",
+      "bytes": 4275,
+      "recordCount": 6
+    },
+    {
+      "id": "al-religion-civilization",
+      "number": 47,
+      "level": "AL",
+      "title": "Religions and civilizations: separate contexts",
+      "subjects": [
+        "Buddhism",
+        "Hinduism",
+        "Christianity",
+        "Islam",
+        "Buddhist Civilization",
+        "Hindu Civilization",
+        "Islam Civilization",
+        "Christian Civilization",
+        "Greek & Roman Civilization"
+      ],
+      "aliases": "ආගම ශිෂ්ටාචාරය சமயம் நாகரிகம்",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "foundations and study methods",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-religion-civilization.md",
+      "sha256": "23c06b7c2809be3eb96b9e133770ab68a42972b5fdfa53c21b51f75eb2e94651",
+      "bytes": 4326,
+      "recordCount": 6
+    },
+    {
+      "id": "al-aesthetics",
+      "number": 48,
+      "level": "AL",
+      "title": "Aesthetic subjects: art and performance analysis",
+      "subjects": [
+        "Art",
+        "Dancing (Indigenous)",
+        "Dancing (Bharatha)",
+        "Oriental Music",
+        "Carnatic Music",
+        "Western Music",
+        "Drama & Theatre (Sinhala)",
+        "Drama & Theatre (Tamil)",
+        "Drama & Theatre (English)"
+      ],
+      "aliases": "චිත්‍ර නර්තන සංගීත නාට්‍ය கலை இசை நடனம்",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "foundations and study methods",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-aesthetics.md",
+      "sha256": "77bbd491e852f32fc4f189fa54189f050c63998ecec0c7f472ea137cc63c4595",
+      "bytes": 4149,
+      "recordCount": 6
+    },
+    {
+      "id": "al-technology",
+      "number": 49,
+      "level": "AL",
+      "title": "Technology: engineering, biosystems and applied science",
+      "subjects": [
+        "Engineering Technology",
+        "Biosystems Technology",
+        "Science for Technology",
+        "Civil Technology",
+        "Mechanical Technology",
+        "Electrical, Electronic & Information Technology",
+        "Food Technology",
+        "Agro Technology",
+        "Bio Resource Technology"
+      ],
+      "aliases": "ඉංජිනේරු ජෛව පද්ධති තාක්ෂණ தொழில்நுட்பம்",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-technology.md",
+      "sha256": "bfce464deb8b0fcd05ffc7a5e0daecea78248f083b1a3e732c73be3f81b8728d",
+      "bytes": 4265,
+      "recordCount": 6
+    },
+    {
+      "id": "al-general-studies",
+      "number": 50,
+      "level": "AL",
+      "title": "General English, GIT and Common General Test",
+      "subjects": [
+        "General English",
+        "General Information Technology",
+        "Common General Test"
+      ],
+      "aliases": "සාමාන්‍ය ඉංග්‍රීසි පොදු පරීක්ෂණය பொது ஆங்கிலம்",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "nie-syllabus",
+        "al-directory"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/al-general-studies.md",
+      "sha256": "cc092ad6d8ba2b46f2b628a25bf5d56285d952219cefb106619499a8241998ef",
+      "bytes": 4200,
+      "recordCount": 6
+    },
+    {
+      "id": "general-country-geography",
+      "number": 51,
+      "level": "GENERAL",
+      "title": "Sri Lanka: geography and finding reliable facts",
+      "subjects": [
+        "Sri Lanka knowledge",
+        "Geography"
+      ],
+      "aliases": "ශ්‍රී ලංකාව இலங்கை provinces districts",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "dcs"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/general-country-geography.md",
+      "sha256": "6f04fed7258b2b1ee86fbf8f8fc301c9e00915dae834f80b0c6c4d778de394b7",
+      "bytes": 3172,
+      "recordCount": 4
+    },
+    {
+      "id": "general-exam-services",
+      "number": 52,
+      "level": "GENERAL",
+      "title": "Exam notices, results and certificates",
+      "subjects": [
+        "Examination services",
+        "Student administration"
+      ],
+      "aliases": "විභාග ප්‍රතිඵල பரீட்சை பெறுபேறு certificates",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "doenets",
+        "doenets-results"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/general-exam-services.md",
+      "sha256": "ab07a3c437667b4d2f4afd43fc8e44015baaac49c06a9e6d6713081ccff6936f",
+      "bytes": 3173,
+      "recordCount": 4
+    },
+    {
+      "id": "general-university-pathways",
+      "number": 53,
+      "level": "GENERAL",
+      "title": "After A/L: university admissions and course research",
+      "subjects": [
+        "University admissions",
+        "Career planning"
+      ],
+      "aliases": "විශ්වවිද්‍යාල ප්‍රවේශය பல்கலைக்கழக அனுமதி UGC",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "ugc"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/general-university-pathways.md",
+      "sha256": "e406d9c2e1b6d1c7003ac6d957ae9417351d735698afe4559790e81c0193b4e3",
+      "bytes": 3401,
+      "recordCount": 4
+    },
+    {
+      "id": "general-vocational-pathways",
+      "number": 54,
+      "level": "GENERAL",
+      "title": "After O/L and A/L: vocational and NVQ pathways",
+      "subjects": [
+        "Vocational training",
+        "NVQ",
+        "Careers"
+      ],
+      "aliases": "වෘත්තීය පුහුණු தொழிற்பயிற்சி NVQ TVEC",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "tvec",
+        "vta"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/general-vocational-pathways.md",
+      "sha256": "aea0b9a3292b7edb871dc9c85fa4b78b55e7e33a37f03e3aa0d6c35b289f00e2",
+      "bytes": 3406,
+      "recordCount": 4
+    },
+    {
+      "id": "general-public-services",
+      "number": 55,
+      "level": "GENERAL",
+      "title": "Student public services: NIC, passports and documents",
+      "subjects": [
+        "National identity card",
+        "Passports",
+        "Public services"
+      ],
+      "aliases": "හැඳුනුම්පත ගමන් බලපත්‍රය அடையாள அட்டை கடவுச்சீட்டு",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "drp",
+        "drp-forms",
+        "immigration"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/general-public-services.md",
+      "sha256": "1a1c9c0d07a142086a5c31d73195a63770f7de703a7011c1b9e6ec8d91719461",
+      "bytes": 3500,
+      "recordCount": 4
+    },
+    {
+      "id": "general-transport-planning",
+      "number": 56,
+      "level": "GENERAL",
+      "title": "Student travel: rail services and practical planning",
+      "subjects": [
+        "Transport",
+        "Sri Lanka Railways",
+        "Student travel"
+      ],
+      "aliases": "ප්‍රවාහන දුම්රිය போக்குவரத்து புகையிரதம்",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "rail",
+        "rail-reservation"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/general-transport-planning.md",
+      "sha256": "beb34ba89c138bc2008a4256ddc4424f32324924821c60205dd171858718b353",
+      "bytes": 3362,
+      "recordCount": 4
+    },
+    {
+      "id": "general-money-digital-safety",
+      "number": 57,
+      "level": "GENERAL",
+      "title": "Money skills and digital safety for students",
+      "subjects": [
+        "Financial literacy",
+        "Digital safety"
+      ],
+      "aliases": "මුදල් සුරක්ෂිතතාව நிதி இணைய பாதுகாப்பு",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "cbsl",
+        "cert"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/general-money-digital-safety.md",
+      "sha256": "b012aa7899e5bcdeba9ce9855d0410c29efa80c553f7e7c78be9cf627341e709",
+      "bytes": 3472,
+      "recordCount": 4
+    },
+    {
+      "id": "general-study-support",
+      "number": 58,
+      "level": "GENERAL",
+      "title": "Student support: libraries, wellbeing and disruptions",
+      "subjects": [
+        "Study skills",
+        "Libraries",
+        "Wellbeing",
+        "Disaster awareness"
+      ],
+      "aliases": "පුස්තකාල අධ්‍යයන உதவி நூலகம் கற்றல்",
+      "language": "en",
+      "titleSearchLanguages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "depth": "introductory foundations",
+      "scope": "Selected foundation concepts and original practice. Not a complete syllabus or official marking scheme.",
+      "syllabusAlignment": "Topic-level reference only; exam-year and competency-by-competency mapping require teacher review.",
+      "reviewStatus": "Original editorial content; subject-teacher review pending.",
+      "sourceIds": [
+        "library",
+        "who-diet",
+        "dmc"
+      ],
+      "sourceCheckedAt": "2026-10-24",
+      "license": "Original Orin editorial notes; linked third-party works retain their own rights.",
+      "markdownUrl": "/student-knowledge/md/general-study-support.md",
+      "sha256": "801e204d1ad6ba1e6ece4e28214ef47732dcee16cfc9b7867abf4cb978f41e09",
+      "bytes": 3518,
+      "recordCount": 4
+    }
+  ]
+}

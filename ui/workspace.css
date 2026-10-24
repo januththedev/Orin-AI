@@ -2106,3 +2106,12 @@
 .password-admin-content { flex: 1; width: 100%; }
 .password-admin-content > .admin-page { max-width: 1240px; margin-inline: auto; }
 @media (max-width: 600px) { .password-admin-header { padding: 18px 20px; } .password-admin-brand > span > span { display: none; } .password-admin-header .text-button { font-size: 12px; } .password-admin-login { align-content: center; padding: 40px 24px; } }
+
+.student-seed-card { display: flex; align-items: flex-start; gap: 17px; margin: 0 0 20px; }
+.student-seed-card > svg { color: var(--accent); flex-shrink: 0; }
+.student-seed-card > div { flex: 1; }
+.student-seed-card h3 { margin: 0 0 7px; font-size: 14px; }
+.student-seed-card p { margin: 0 0 9px; color: var(--muted); font-size: 12px; line-height: 1.8; }
+.student-seed-card a { color: var(--accent); font-size: 11px; }
+.student-seed-card .button { flex-shrink: 0; }
+@media(max-width:700px) { .student-seed-card { flex-wrap: wrap; } .student-seed-card > div { min-width: 200px; } .student-seed-card .button { width: 100%; justify-content: center; } }

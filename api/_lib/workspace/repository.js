@@ -58,6 +58,20 @@ export class Repository {
     );
     return r[0]?.data;
   }
+  async acquireLease(id, owner, ttlMs) {
+    const now = Date.now();
+    const result = await this.query(
+      "INSERT INTO orin_workspace_records(kind,id,data) VALUES('leases',$1,jsonb_build_object('owner',$2::text,'until',$3::bigint)) ON CONFLICT(kind,id) DO UPDATE SET data=EXCLUDED.data,updated_at=now() WHERE COALESCE((orin_workspace_records.data->>'until')::bigint,0)<$4 RETURNING id",
+      [id, owner, now + ttlMs, now],
+    );
+    return result.length > 0;
+  }
+  async releaseLease(id, owner) {
+    await this.query(
+      "DELETE FROM orin_workspace_records WHERE kind='leases' AND id=$1 AND data->>'owner'=$2",
+      [id, owner],
+    );
+  }
   async leaseJob(id, owner) {
     const r = await this.query(
       "UPDATE orin_workspace_records SET data=data || jsonb_build_object('leaseOwner',$2::text,'leaseUntil',$3::bigint,'status','running'),updated_at=now() WHERE kind='jobs' AND id=$1 AND data->>'status' IN ('queued','running') AND COALESCE((data->>'leaseUntil')::bigint,0)<$4 RETURNING data",
@@ -265,6 +279,16 @@ export class MemoryRepository {
   async patch(k, id, p) {
     const d = await this.get(k, id);
     if (d) return this.put(k, id, { ...d, ...p });
+  }
+  async acquireLease(id, owner, ttlMs) {
+    const key = this.key("leases", id);
+    if ((this.records.get(key)?.until || 0) >= Date.now()) return false;
+    this.records.set(key, { id, owner, until: Date.now() + ttlMs });
+    return true;
+  }
+  async releaseLease(id, owner) {
+    const key = this.key("leases", id);
+    if (this.records.get(key)?.owner === owner) this.records.delete(key);
   }
   async leaseJob(id, owner) {
     const j = await this.get("jobs", id);
